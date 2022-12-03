@@ -4,13 +4,10 @@ using namespace ELFIO;
 
 void patch_section(elfio *reader, section *sec, Elf32_Addr addr, const char *value, int size) {
 	/* insert the patch to the section*/
-	const char *data = (const char *)sec->get_data();
-	char *newdata = new char[sec->get_size() + size];
-	std::copy(data, data + addr, newdata);
-	std::copy(value, value + size, newdata + addr);
-	std::copy(data + addr, data + sec->get_size(), newdata + addr + size);
-	sec->set_data(newdata, sec->get_size() + size);
-	delete[] newdata;
+	sec->insert_data(addr, value + 0, 1);
+	sec->insert_data(addr, value + 1, 1);
+	sec->insert_data(addr, value + 2, 1);
+	sec->insert_data(addr, value + 3, 1);
 
 	for ( int i = 0; i < reader->sections.size(); ++i ) {
 		section* psec = reader->sections[i];
