@@ -9,11 +9,14 @@ struct bunit {
 	uint64_t addr;
 	uint64_t new_addr;
 	int size;
+	cs_detail detail;
+
 	bunit(const cs_insn &p) {
 		in = p;
 		this->addr = p.address;
 		this->data = nullptr;
 		this->size = p.size;
+		detail = *p.detail;
 	}
 	bunit(const uint8_t *data, uint64_t size, uint64_t addr) {
 		this->data = data;

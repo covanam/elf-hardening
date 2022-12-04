@@ -8,8 +8,8 @@
 
 using namespace ELFIO;
 
-static std::vector<cs_insn> code_to_cs_insn(const uint8_t *p, int size, uint64_t addr) {
-        std::vector<cs_insn> ret;
+static std::vector<bunit> code_to_bunit(const uint8_t *p, int size, uint64_t addr) {
+        std::vector<bunit> ret;
         csh handle;
 	cs_insn *insn;
 	size_t count;
@@ -17,6 +17,7 @@ static std::vector<cs_insn> code_to_cs_insn(const uint8_t *p, int size, uint64_t
 	if (cs_open(CS_ARCH_ARM, CS_MODE_THUMB, &handle) != CS_ERR_OK) {
                 /* #TODO */
         }
+        cs_option(handle, CS_OPT_DETAIL, CS_OPT_ON);
 	count = cs_disasm(handle, p, size, addr, 0, &insn);
 
 	if (count > 0) {
@@ -91,7 +92,7 @@ split_text_section(const ELFIO::section *text, const symbol_section_accessor &sa
 }
 
 static std::list<bunit> merge_instruction_data(
-        const std::list<std::vector<cs_insn>> &inst,
+        const std::list<std::vector<bunit>> &inst,
         const std::list<raw_binary> &data
 ) {
         std::list<bunit> ret;
@@ -104,13 +105,13 @@ static std::list<bunit> merge_instruction_data(
                         goto add_data;
                 if (d_itor == data.end())
                         goto add_inst;
-                if ((*i_itor)[0].address < d_itor->addr)
+                if ((*i_itor)[0].addr < d_itor->addr)
                         goto add_inst;
                 goto add_data;
 
                 add_inst:
-                for (const cs_insn &i : *i_itor) {
-                        ret.push_back(bunit(i));
+                for (const bunit &i : *i_itor) {
+                        ret.push_back(i);
                 }
                 i_itor++;
                 continue;
@@ -139,11 +140,11 @@ std::list<bunit> disassemble(const ELFIO::elfio& reader) {
         std::list<raw_binary> code = std::get<0>(temp);
         std::list<raw_binary> data = std::get<1>(temp);
 
-        std::list<std::vector<cs_insn>> insn_list(code.size());
+        std::list<std::vector<bunit>> insn_list(code.size());
 
         auto il = insn_list.begin();
         for (const raw_binary &b : code) {
-                *il = code_to_cs_insn(b.data, b.size, b.addr);
+                *il = code_to_bunit(b.data, b.size, b.addr);
                 ++il;
         }
 
