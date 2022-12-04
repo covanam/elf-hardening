@@ -29,6 +29,34 @@ struct bunit {
 		this->rel = false;
 	}
 
+	friend std::ostream& operator<<(std::ostream& os, const bunit &b) {
+		os << b.in.mnemonic << ' ';
+		if (b.rel) {
+			int i, j;
+			for (i = 0; b.in.op_str[i] != '#'; ++i);
+			j = i + 1;
+			while (true) {
+				char c = b.in.op_str[j];
+				if (c == 'x' || '0' <= c && c <= '9'
+					|| 'a' <= c && c <= 'f'
+					|| 'A' <= c && c <= 'F') {
+					++j;
+					continue;
+				}
+				break;
+			}
+			os.write(b.in.op_str, i + 1);
+
+			uint64_t pc = (b.addr + 4) & ~(uint64_t)2;
+			int imm = b.target_addr - pc;
+			os << imm;
+			os << (b.in.op_str + j);
+		} else {
+			os << b.in.op_str;
+		}
+		return os;
+	}
+
 private:
 	void calculate_relative_address() {
 		bool use_pc = false;

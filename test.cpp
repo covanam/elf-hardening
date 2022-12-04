@@ -11,11 +11,7 @@ int main(int argc, char *argv[]) {
                 if (c.data != nullptr) {
                         std::cout << '[' << c.addr << "] some data\n";
                 } else {
-                        std::cout << '[' << c.addr << "] " << c.in.mnemonic
-                                << ' ' << c.in.op_str;
-                        if (c.rel)
-                                std::cout << " (" << c.target_addr << ')';
-                        std::cout << '\n';
+                        std::cout << c << '\n';
                 }
         }
 }
