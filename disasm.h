@@ -4,7 +4,7 @@
 #include <list>
 
 struct bunit {
-	std::vector<uint8_t> raw;
+	uint8_t data;
 	cs_insn in;
 	uint64_t addr;
 	uint64_t new_addr;
@@ -16,12 +16,11 @@ struct bunit {
 	bunit(const cs_insn &p) {
 		in = p;
 		this->addr = p.address;
-		raw.assign(p.bytes, p.bytes + p.size);
 		detail = *p.detail;
 		calculate_relative_address();
 	}
-	bunit(const uint8_t *data, uint64_t size, uint64_t addr) {
-		raw.assign(data, data + size);
+	bunit(uint8_t data, uint64_t addr) {
+		this->data = data;
 		this->addr = addr;
 		this->rel = false;
 		in.id = 0; // invalid instruction, to mark this struct as data
@@ -29,7 +28,9 @@ struct bunit {
 	bunit(const std::string s, uint64_t addr);
 
 	int size() const {
-		return raw.size();
+		if (in.id != 0)
+			return in.size;
+		return 1;
 	}
 
 	friend std::ostream& operator<<(std::ostream& os, const bunit &b) {

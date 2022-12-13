@@ -118,7 +118,8 @@ static std::list<bunit> merge_instruction_data(
                 continue;
 
                 add_data:
-                ret.push_back(bunit(d_itor->data, d_itor->size, d_itor->addr));
+		for (int i = 0; i < d_itor->size; ++i)
+			ret.push_back(bunit(d_itor->data[i], d_itor->addr + i));
                 d_itor++;
         }
 
@@ -202,8 +203,8 @@ void dump_text(ELFIO::elfio& writer, const std::list<bunit> &d) {
         int i = 0;
         for (const bunit &b : d) {
 		if (b.in.id == 0) {
-			std::copy(b.raw.begin(), b.raw.end(), &dump[i]);
-			i += b.size();
+			dump[i] = b.data;
+			i++;
 		} else if (b.rel) {
 			std::stringstream assembly;
 			assembly << b;
