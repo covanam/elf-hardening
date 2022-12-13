@@ -8,7 +8,7 @@ int main(int argc, char *argv[]) {
         x = disassemble(reader);
 
         for (const bunit &c : x) {
-                if (c.data != nullptr) {
+                if (c.in.id == 0) {
                         std::cout << '[' << c.addr << "] some data\n";
                 } else {
                         std::cout << c << '\n';

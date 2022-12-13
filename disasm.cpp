@@ -190,25 +190,23 @@ void dump_text(ELFIO::elfio& writer, const std::list<bunit> &d) {
 
         int total_size = 0;
         for (const bunit &b : d) {
-                total_size += b.size;
+                total_size += b.size();
         }
         std::vector<uint8_t> dump(total_size);
         int i = 0;
         for (const bunit &b : d) {
-		if (b.data) {
-			std::copy(b.data, b.data + b.size, &dump[i]);
-			i += b.size;
+		if (b.in.id == 0) {
+			std::copy(b.raw.begin(), b.raw.end(), &dump[i]);
+			i += b.size();
 		} else if (b.rel) {
 			std::stringstream assembly;
 			assembly << b;
 			std::vector<uint8_t> tmp = assemble(assembly.str());
 			std::copy(tmp.begin(), tmp.end(), &dump[i]);
 			i += tmp.size();
-			std::cout << std::hex << b.addr << std::endl;
-			std::cout << assembly.str() << ' ' << tmp.size() << '\n';
                 } else {
-			std::copy(b.in.bytes, b.in.bytes + b.size, &dump[i]);
-			i += b.size;
+			std::copy(b.in.bytes, b.in.bytes + b.size(), &dump[i]);
+			i += b.size();
 		}
         }
 	text->set_data((const char *)&dump[0], dump.size());
