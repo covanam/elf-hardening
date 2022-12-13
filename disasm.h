@@ -102,3 +102,5 @@ private:
 };
 
 std::list<bunit> disassemble(const ELFIO::elfio& reader);
+
+void dump_text(ELFIO::elfio& writer, const std::list<bunit> &d);

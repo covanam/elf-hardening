@@ -5,6 +5,9 @@
 #include <vector>
 #include <elfio/elfio.hpp>
 #include "disasm.h"
+#include <keystone/keystone.h>
+#include <keystone/arm.h>
+#include <sstream>
 
 using namespace ELFIO;
 
@@ -14,7 +17,7 @@ static std::vector<bunit> code_to_bunit(const uint8_t *p, int size, uint64_t add
 	cs_insn *insn;
 	size_t count;
 
-	if (cs_open(CS_ARCH_ARM, CS_MODE_THUMB, &handle) != CS_ERR_OK) {
+	if (cs_open(CS_ARCH_ARM, (cs_mode)(CS_MODE_THUMB|CS_MODE_MCLASS), &handle) != CS_ERR_OK) {
                 /* #TODO */
         }
         cs_option(handle, CS_OPT_DETAIL, CS_OPT_ON);
@@ -58,6 +61,8 @@ split_text_section(const ELFIO::section *text, const symbol_section_accessor &sa
                 Elf_Half section_index;
                 unsigned char other;
 
+		last = curr;
+
                 sa.get_symbol(i, name, value, size, bind,
                 type, section_index, other);
 
@@ -80,13 +85,9 @@ split_text_section(const ELFIO::section *text, const symbol_section_accessor &sa
                 if (last != nullptr) {
                         last->size = curr->addr - last->addr;
                 }
-
-                if (i == sa.get_symbols_num() - 1) {
-                        curr->size = text->get_data() + text->get_size() - (char*)last->data; 
-                }
-
-                last = curr;
         }
+
+	curr->size = text->get_data() + text->get_size() - (char*)last->data; 
 
         return std::tuple(code, data);
 }
@@ -149,4 +150,66 @@ std::list<bunit> disassemble(const ELFIO::elfio& reader) {
         }
 
         return merge_instruction_data(insn_list, data);
+}
+
+std::vector<uint8_t> assemble(const std::string &s) {
+	std::vector<uint8_t> ret;
+	ks_engine *ks;
+	ks_err err;
+	size_t count;
+	unsigned char *encode;
+	size_t size;
+
+	err = ks_open(KS_ARCH_ARM, KS_MODE_THUMB, &ks);
+	if (err != KS_ERR_OK) {
+		/* #TODO */
+	}
+  
+	if (ks_asm(ks, s.c_str(), 0, &encode, &size, &count) != KS_ERR_OK) {
+		// #TODO
+	} else {
+		ret.assign(encode, encode + size);
+	}
+
+	// NOTE: free encode after usage to avoid leaking memory
+	ks_free(encode);
+
+	// close Keystone instance when done
+	ks_close(ks);
+
+	return ret;
+}
+
+void dump_text(ELFIO::elfio& writer, const std::list<bunit> &d) {
+        ELFIO::section *text;
+	for (int i = 0; i < writer.sections.size(); ++i) {
+		if (writer.sections[i]->get_name() == ".text") {
+			text = writer.sections[i];
+		}
+	}
+
+        int total_size = 0;
+        for (const bunit &b : d) {
+                total_size += b.size;
+        }
+        std::vector<uint8_t> dump(total_size);
+        int i = 0;
+        for (const bunit &b : d) {
+		if (b.data) {
+			std::copy(b.data, b.data + b.size, &dump[i]);
+			i += b.size;
+		} else if (b.rel) {
+			std::stringstream assembly;
+			assembly << b;
+			std::vector<uint8_t> tmp = assemble(assembly.str());
+			std::copy(tmp.begin(), tmp.end(), &dump[i]);
+			i += tmp.size();
+			std::cout << std::hex << b.addr << std::endl;
+			std::cout << assembly.str() << ' ' << tmp.size() << '\n';
+                } else {
+			std::copy(b.in.bytes, b.in.bytes + b.size, &dump[i]);
+			i += b.size;
+		}
+        }
+	text->set_data((const char *)&dump[0], dump.size());
 }

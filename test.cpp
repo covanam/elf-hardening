@@ -14,4 +14,8 @@ int main(int argc, char *argv[]) {
                         std::cout << c << '\n';
                 }
         }
+        
+        dump_text(reader, x);
+
+        reader.save(argv[2]);
 }
