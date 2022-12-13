@@ -26,6 +26,7 @@ struct bunit {
 		this->rel = false;
 		in.id = 0; // invalid instruction, to mark this struct as data
 	}
+	bunit(const std::string s, uint64_t addr);
 
 	int size() const {
 		return raw.size();

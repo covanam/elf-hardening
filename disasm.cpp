@@ -180,6 +180,12 @@ std::vector<uint8_t> assemble(const std::string &s) {
 	return ret;
 }
 
+bunit::bunit(const std::string s, uint64_t addr) {
+	std::vector<uint8_t> bin = assemble(s);
+	static std::vector<bunit> t = code_to_bunit(&bin[0], bin.size(), addr);
+	*this = t[0];
+}
+
 void dump_text(ELFIO::elfio& writer, const std::list<bunit> &d) {
         ELFIO::section *text;
 	for (int i = 0; i < writer.sections.size(); ++i) {
