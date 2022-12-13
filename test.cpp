@@ -6,11 +6,13 @@ int main(int argc, char *argv[]) {
 	reader.load(argv[1]);
         std::list<bunit> x;
         x = disassemble(reader);
+        calculate_target(x);
 
         for (const bunit &c : x) {
                 if (c.in.id == 0) {
                         std::cout << '[' << c.addr << "] some data\n";
                 } else {
+                        std::cout << std::hex << '[' << c.addr << "] ";
                         std::cout << c << '\n';
                 }
         }

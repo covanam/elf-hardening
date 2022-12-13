@@ -10,20 +10,19 @@ struct bunit {
 	uint64_t new_addr;
 	cs_detail detail;
 
-	bool rel;
-	uint64_t target_addr;
+	bunit *target;
 
 	bunit(const cs_insn &p) {
 		in = p;
 		this->addr = p.address;
 		detail = *p.detail;
-		calculate_relative_address();
+		target = nullptr;
 	}
 	bunit(uint8_t data, uint64_t addr) {
 		this->data = data;
 		this->addr = addr;
-		this->rel = false;
 		in.id = 0; // invalid instruction, to mark this struct as data
+		target = nullptr;
 	}
 	bunit(const std::string s, uint64_t addr);
 
@@ -35,7 +34,7 @@ struct bunit {
 
 	friend std::ostream& operator<<(std::ostream& os, const bunit &b) {
 		os << b.in.mnemonic << ' ';
-		if (b.rel) {
+		if (b.target) {
 			int i, j;
 			for (i = 0; b.in.op_str[i] != '#'; ++i);
 			j = i + 1;
@@ -51,8 +50,14 @@ struct bunit {
 			}
 			os.write(b.in.op_str, i + 1);
 
-			uint64_t pc = (b.addr + 4) & ~(uint64_t)2;
-			int imm = b.target_addr - pc;
+			int imm;
+			if (b.is_branch_relative()) {
+				imm = b.target->addr - b.addr;
+			} else {
+				uint64_t pc = (b.addr + 4) & ~(uint64_t)2;
+				imm = b.target->addr - pc;
+			}
+
 			os << imm;
 			os << (b.in.op_str + j);
 		} else {
@@ -61,15 +66,13 @@ struct bunit {
 		return os;
 	}
 
-private:
-	void calculate_relative_address() {
+	bool calculate_target_address(uint64_t *addr) {
 		bool use_pc = false;
 		bool use_imm = false;
 		int imm;
 
 		if (in.id == 0) {
-			rel = false;
-			return;
+			return false;
 		}
 		for (
 			const cs_arm_op *op = detail.arm.operands;
@@ -98,21 +101,35 @@ private:
 
 		for (int i = 0; i < detail.groups_count; ++i) {
 			if (detail.groups[i] == ARM_GRP_BRANCH_RELATIVE) {
-				use_pc = true;
-				break;
+				*addr = imm;
+				return true;
 			}
 		}
 
 		if (use_pc && use_imm) {
-			uint64_t pc = (addr + 4) & ~(uint64_t)2;
-			target_addr = pc + imm;
-			rel = true;
+			uint64_t pc = (this->addr + 4) & ~(uint64_t)2;
+			*addr = pc + imm;
+			return true;
 		} else {
-			rel = false;
+			return false;;
 		}
+	}
+
+	bool is_branch_relative() const {
+		if (in.id == 0)
+			return false;
+
+		for (int i = 0; i < detail.groups_count; ++i) {
+			if (detail.groups[i] == ARM_GRP_BRANCH_RELATIVE) {
+				return true;
+			}
+		}
+		return false;
 	}
 };
 
 std::list<bunit> disassemble(const ELFIO::elfio& reader);
 
 void dump_text(ELFIO::elfio& writer, const std::list<bunit> &d);
+
+void calculate_target(std::list<bunit> &x);

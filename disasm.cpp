@@ -205,7 +205,7 @@ void dump_text(ELFIO::elfio& writer, const std::list<bunit> &d) {
 		if (b.in.id == 0) {
 			dump[i] = b.data;
 			i++;
-		} else if (b.rel) {
+		} else if (b.target) {
 			std::stringstream assembly;
 			assembly << b;
 			std::vector<uint8_t> tmp = assemble(assembly.str());
@@ -217,4 +217,15 @@ void dump_text(ELFIO::elfio& writer, const std::list<bunit> &d) {
 		}
         }
 	text->set_data((const char *)&dump[0], dump.size());
+}
+
+void calculate_target(std::list<bunit> &x) {
+	for (bunit &b : x) {
+		uint64_t addr;
+		if (!b.calculate_target_address(&addr))
+			continue;
+		auto temp = std::find_if(x.begin(), x.end(),
+			[addr](const bunit &t) { return addr == t.addr; });
+		b.target = &*temp;
+	}
 }
