@@ -94,6 +94,14 @@ private:
 				break;
 			}
 		}
+
+		for (int i = 0; i < detail.groups_count; ++i) {
+			if (detail.groups[i] == ARM_GRP_BRANCH_RELATIVE) {
+				use_pc = true;
+				break;
+			}
+		}
+
 		if (use_pc && use_imm) {
 			uint64_t pc = (addr + 4) & ~(uint64_t)2;
 			target_addr = pc + imm;
