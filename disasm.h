@@ -133,3 +133,5 @@ std::list<bunit> disassemble(const ELFIO::elfio& reader);
 void dump_text(ELFIO::elfio& writer, const std::list<bunit> &d);
 
 void calculate_target(std::list<bunit> &x);
+
+void fix_address(std::list<bunit> &x);

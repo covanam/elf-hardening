@@ -8,11 +8,22 @@ int main(int argc, char *argv[]) {
         x = disassemble(reader);
         calculate_target(x);
 
+        for (auto i = x.begin(); i != x.end(); ++i) {
+                if (i->in.id != 0) {
+                        uint64_t addr = i->addr;
+                        bunit nop("nop", addr);
+                        x.insert(i, nop);
+                        break;
+                }
+        }
+
+        fix_address(x);
+
         for (const bunit &c : x) {
+                std::cout << std::hex << '[' << c.addr << "] " << std::dec;
                 if (c.in.id == 0) {
-                        std::cout << '[' << c.addr << "] some data\n";
+                        std::cout << "some data\n";
                 } else {
-                        std::cout << std::hex << '[' << c.addr << "] ";
                         std::cout << c << '\n';
                 }
         }

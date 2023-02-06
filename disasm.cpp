@@ -211,6 +211,8 @@ void dump_text(ELFIO::elfio& writer, const std::list<bunit> &d) {
 			std::vector<uint8_t> tmp = assemble(assembly.str());
 			std::copy(tmp.begin(), tmp.end(), &dump[i]);
 			i += tmp.size();
+			if (tmp.size() != b.size())
+				std::cout << "resized: " << b << ' ' << b.size() << ' ' << tmp.size() << '\n';
                 } else {
 			std::copy(b.in.bytes, b.in.bytes + b.size(), &dump[i]);
 			i += b.size();
@@ -227,5 +229,13 @@ void calculate_target(std::list<bunit> &x) {
 		auto temp = std::find_if(x.begin(), x.end(),
 			[addr](const bunit &t) { return addr == t.addr; });
 		b.target = &*temp;
+	}
+}
+
+void fix_address(std::list<bunit> &x) {
+	uint64_t curr_addr = x.begin()->addr;
+	for (bunit &b : x) {
+		b.addr = curr_addr;
+		curr_addr += b.size();
 	}
 }
