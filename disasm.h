@@ -10,19 +10,18 @@ struct bunit {
 	uint64_t new_addr;
 	cs_detail detail;
 
-	bunit *target;
+	std::string target_label;
+	std::string label;
 
 	bunit(const cs_insn &p) {
 		in = p;
 		this->addr = p.address;
 		detail = *p.detail;
-		target = nullptr;
 	}
 	bunit(uint8_t data, uint64_t addr) {
 		this->data = data;
 		this->addr = addr;
 		in.id = 0; // invalid instruction, to mark this struct as data
-		target = nullptr;
 	}
 	bunit(const std::string s, uint64_t addr);
 
@@ -33,8 +32,18 @@ struct bunit {
 	}
 
 	friend std::ostream& operator<<(std::ostream& os, const bunit &b) {
+		if (false == b.label.empty()) {
+			os << b.label << ": ";
+		}
+
+		if (b.in.id == 0) {
+			os << ".byte " << +b.data;
+			return os;
+		}
+
 		os << b.in.mnemonic << ' ';
-		if (b.target) {
+		if (false == b.target_label.empty()) {
+			/* replace immediate value with label */
 			int i, j;
 			for (i = 0; b.in.op_str[i] != '#'; ++i);
 			j = i + 1;
@@ -50,15 +59,8 @@ struct bunit {
 			}
 			os.write(b.in.op_str, i + 1);
 
-			int imm;
-			if (b.is_branch_relative()) {
-				imm = b.target->addr - b.addr;
-			} else {
-				uint64_t pc = (b.addr + 4) & ~(uint64_t)2;
-				imm = b.target->addr - pc;
-			}
+			os << b.target_label;
 
-			os << imm;
 			os << (b.in.op_str + j);
 		} else {
 			os << b.in.op_str;
@@ -135,3 +137,16 @@ void dump_text(ELFIO::elfio& writer, const std::list<bunit> &d);
 void calculate_target(std::list<bunit> &x);
 
 void fix_address(std::list<bunit> &x);
+
+struct lifter {
+	lifter(const ELFIO::elfio& reader);
+
+	void construct_labels();
+
+	std::list<bunit> instructions;
+
+	const ELFIO::elfio& reader;
+	ELFIO::section *sym_sec;
+	ELFIO::section *rel_sec;
+	ELFIO::section *text_sec;
+};

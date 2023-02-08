@@ -205,7 +205,7 @@ void dump_text(ELFIO::elfio& writer, const std::list<bunit> &d) {
 		if (b.in.id == 0) {
 			dump[i] = b.data;
 			i++;
-		} else if (b.target) {
+		} else if (b.target_label.length() != 0) {
 			std::stringstream assembly;
 			assembly << b;
 			std::vector<uint8_t> tmp = assemble(assembly.str());
@@ -221,21 +221,87 @@ void dump_text(ELFIO::elfio& writer, const std::list<bunit> &d) {
 	text->set_data((const char *)&dump[0], dump.size());
 }
 
-void calculate_target(std::list<bunit> &x) {
-	for (bunit &b : x) {
-		uint64_t addr;
-		if (!b.calculate_target_address(&addr))
-			continue;
-		auto temp = std::find_if(x.begin(), x.end(),
-			[addr](const bunit &t) { return addr == t.addr; });
-		b.target = &*temp;
-	}
-}
-
 void fix_address(std::list<bunit> &x) {
 	uint64_t curr_addr = x.begin()->addr;
 	for (bunit &b : x) {
 		b.addr = curr_addr;
 		curr_addr += b.size();
+	}
+}
+
+lifter::lifter(const ELFIO::elfio& reader) : reader(reader)
+{
+	instructions = disassemble(reader);
+
+	for (int i = 0; i < reader.sections.size(); ++i) {
+		section* psec = reader.sections[i];
+		if (psec->get_type() == SHT_SYMTAB) {
+			sym_sec = psec;
+		}
+		else if (psec->get_type() == SHT_REL) {
+			rel_sec = psec;
+		}
+		else if (reader.sections[i]->get_name() == ".text") {
+                        text_sec = psec;
+                }
+	}
+}
+
+void lifter::construct_labels() {
+	symbol_section_accessor symbols(reader, sym_sec);
+
+	for (unsigned int i = 1; i < symbols.get_symbols_num(); ++i) {
+		std::string name;
+		Elf64_Addr value;
+		Elf_Xword size;
+		unsigned char bind;
+		unsigned char type;
+		Elf_Half section_index;
+		unsigned char other;
+		symbols.get_symbol(
+			i,
+			name,
+			value,
+			size,
+			bind,
+			type,
+			section_index,
+			other);
+
+		if (text_sec != reader.sections[section_index])
+			continue;
+
+		if (name == "$t" || name == "$d")
+			continue;
+
+		for (bunit& in : this->instructions) {
+			if (in.addr == value ||
+			    type == STT_FUNC && in.addr == value - 1
+			) {
+				in.label = name;
+				break;
+			}
+		}
+	}
+
+	int local_label_counter = 0;
+
+	for (bunit& in : this->instructions) {
+		uint64_t addr;
+
+		if (in.target_label.size() != 0)
+			continue;
+
+		if (!in.calculate_target_address(&addr))
+			continue;
+		auto temp = std::find_if(instructions.begin(), instructions.end(),
+			[addr](bunit &t) { return addr == t.addr; });
+	
+		if (temp->label.empty()) {
+			temp->label = ".L" + std::to_string(local_label_counter);
+			local_label_counter++;
+		}
+		
+		in.target_label = temp->label;
 	}
 }

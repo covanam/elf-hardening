@@ -4,10 +4,18 @@
 int main(int argc, char *argv[]) {
 	ELFIO::elfio reader;
 	reader.load(argv[1]);
-        std::list<bunit> x;
-        x = disassemble(reader);
-        calculate_target(x);
 
+	lifter lift(reader);
+
+        lift.construct_labels();
+
+	for (const bunit &c : lift.instructions) {
+                std::cout << std::hex << '[' << c.addr << "] " << std::dec;
+
+                std::cout << c << '\n';
+        }
+
+/*
         for (auto i = x.begin(); i != x.end(); ++i) {
                 if (i->in.id != 0) {
                         uint64_t addr = i->addr;
@@ -31,4 +39,5 @@ int main(int argc, char *argv[]) {
         dump_text(reader, x);
 
         reader.save(argv[2]);
+*/
 }
