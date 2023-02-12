@@ -4,7 +4,7 @@
 #include <list>
 #include <sstream>
 
-struct bunit {
+struct vins {
 	std::string mnemonic;
 	std::string operands;
 	cs_insn in;
@@ -14,13 +14,13 @@ struct bunit {
 	std::string target_label;
 	std::string label;
 
-	bunit(const cs_insn &p) {
-		in = p;
-		this->addr = p.address;
-		detail = *p.detail;
+	vins(const cs_insn &in) {
+		this->in = in;
+		this->addr = in.address;
+		detail = *in.detail;
 
-		mnemonic = p.mnemonic;
-		operands = p.op_str;
+		mnemonic = in.mnemonic;
+		operands = in.op_str;
 
 		uint64_t dum;
 		if (calculate_target_address(&dum)) {
@@ -32,13 +32,11 @@ struct bunit {
 					break;
 				++i;
 			}
-			if (c == '#')
-				operands = operands.substr(0, i) + "%m";
-			else if (c == '[')
+			if (c == '#' || c == '[')
 				operands = operands.substr(0, i) + "%m";
 		}
 	}
-	bunit(uint8_t data, uint64_t addr) {
+	vins(uint8_t data, uint64_t addr) {
 		mnemonic = ".byte";
 		std::stringstream ss;
 		ss << std::hex << +data;
@@ -46,7 +44,7 @@ struct bunit {
 		this->addr = addr;
 		in.id = 0;
 	}
-	bunit(const std::string s, uint64_t addr);
+	vins(const std::string s, uint64_t addr);
 
 	int size() const {
 		if (in.id != 0)
@@ -54,7 +52,7 @@ struct bunit {
 		return 1;
 	}
 
-	friend std::ostream& operator<<(std::ostream& os, const bunit &b) {
+	friend std::ostream& operator<<(std::ostream& os, const vins &b) {
 		if (b.label.length()) {
 			os << b.label << ": ";
 		}
@@ -137,20 +135,20 @@ struct bunit {
 	}
 };
 
-std::list<bunit> disassemble(const ELFIO::elfio& reader);
+std::list<vins> disassemble(const ELFIO::elfio& reader);
 
-void dump_text(ELFIO::elfio& writer, const std::list<bunit> &d);
+void dump_text(ELFIO::elfio& writer, const std::list<vins> &d);
 
-void calculate_target(std::list<bunit> &x);
+void calculate_target(std::list<vins> &x);
 
-void fix_address(std::list<bunit> &x);
+void fix_address(std::list<vins> &x);
 
 struct lifter {
 	lifter(const ELFIO::elfio& reader);
 
 	void construct_labels();
 
-	std::list<bunit> instructions;
+	std::list<vins> instructions;
 
 	const ELFIO::elfio& reader;
 	ELFIO::section *sym_sec;

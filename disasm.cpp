@@ -11,8 +11,8 @@
 
 using namespace ELFIO;
 
-static std::vector<bunit> code_to_bunit(const uint8_t *p, int size, uint64_t addr) {
-	std::vector<bunit> ret;
+static std::vector<vins> code_to_bunit(const uint8_t *p, int size, uint64_t addr) {
+	std::vector<vins> ret;
 	csh handle;
 	cs_insn *insn;
 	size_t count;
@@ -92,11 +92,11 @@ split_text_section(const ELFIO::section *text, const symbol_section_accessor &sa
 	return std::tuple(code, data);
 }
 
-static std::list<bunit> merge_instruction_data(
-	const std::list<std::vector<bunit>> &inst,
+static std::list<vins> merge_instruction_data(
+	const std::list<std::vector<vins>> &inst,
 	const std::list<raw_binary> &data
 ) {
-	std::list<bunit> ret;
+	std::list<vins> ret;
 
 	auto d_itor = data.begin();
 	auto i_itor = inst.begin();
@@ -111,7 +111,7 @@ static std::list<bunit> merge_instruction_data(
 		goto add_data;
 
 		add_inst:
-		for (const bunit &i : *i_itor) {
+		for (const vins &i : *i_itor) {
 			ret.push_back(i);
 		}
 		i_itor++;
@@ -119,14 +119,14 @@ static std::list<bunit> merge_instruction_data(
 
 		add_data:
 		for (int i = 0; i < d_itor->size; ++i)
-			ret.push_back(bunit(d_itor->data[i], d_itor->addr + i));
+			ret.push_back(vins(d_itor->data[i], d_itor->addr + i));
 		d_itor++;
 	}
 
 	return ret;
 }
 
-std::list<bunit> disassemble(const ELFIO::elfio& reader) {
+std::list<vins> disassemble(const ELFIO::elfio& reader) {
 	ELFIO::section *text = nullptr, *symtab;
 	for (int i = 0; i < reader.sections.size(); ++i) {
 		if (reader.sections[i]->get_name() == ".text") {
@@ -142,7 +142,7 @@ std::list<bunit> disassemble(const ELFIO::elfio& reader) {
 	std::list<raw_binary> code = std::get<0>(temp);
 	std::list<raw_binary> data = std::get<1>(temp);
 
-	std::list<std::vector<bunit>> insn_list(code.size());
+	std::list<std::vector<vins>> insn_list(code.size());
 
 	auto il = insn_list.begin();
 	for (const raw_binary &b : code) {
@@ -181,21 +181,21 @@ std::vector<uint8_t> assemble(const std::string &s) {
 	return ret;
 }
 
-bunit::bunit(const std::string s, uint64_t addr) {
+vins::vins(const std::string s, uint64_t addr) {
 	std::vector<uint8_t> bin = assemble(s);
-	static std::vector<bunit> t = code_to_bunit(&bin[0], bin.size(), addr);
+	static std::vector<vins> t = code_to_bunit(&bin[0], bin.size(), addr);
 	*this = t[0];
 }
 
-void fix_address(std::list<bunit> &x) {
+void fix_address(std::list<vins> &x) {
 	uint64_t curr_addr = x.begin()->addr;
-	for (bunit &b : x) {
+	for (vins &b : x) {
 		b.addr = curr_addr;
 		curr_addr += b.size();
 	}
 }
 
-void dump_text(ELFIO::elfio& writer, const std::list<bunit> &d) {
+void dump_text(ELFIO::elfio& writer, const std::list<vins> &d) {
 	ELFIO::section *text;
 	for (int i = 0; i < writer.sections.size(); ++i) {
 		if (writer.sections[i]->get_name() == ".text") {
@@ -204,7 +204,7 @@ void dump_text(ELFIO::elfio& writer, const std::list<bunit> &d) {
 	}
 
 	std::stringstream assembly;
-	for (const bunit &b : d) {
+	for (const vins &b : d) {
 		assembly << b << ';';
 	}
 	std::vector<uint8_t> tmp = assemble(assembly.str());
@@ -257,7 +257,7 @@ void lifter::construct_labels() {
 		if (name == "$t" || name == "$d")
 			continue;
 
-		for (bunit& in : this->instructions) {
+		for (vins& in : this->instructions) {
 			if (in.addr == value ||
 			    type == STT_FUNC && in.addr == value - 1
 			) {
@@ -269,7 +269,7 @@ void lifter::construct_labels() {
 
 	int local_label_counter = 0;
 
-	for (bunit& in : this->instructions) {
+	for (vins& in : this->instructions) {
 		uint64_t addr;
 
 		if (in.target_label.size() != 0)
@@ -278,7 +278,7 @@ void lifter::construct_labels() {
 		if (!in.calculate_target_address(&addr))
 			continue;
 		auto temp = std::find_if(instructions.begin(), instructions.end(),
-			[addr](bunit &t) { return addr == t.addr; });
+			[addr](vins &t) { return addr == t.addr; });
 	
 		if (temp->label.empty()) {
 			temp->label = ".L" + std::to_string(local_label_counter);

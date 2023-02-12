@@ -9,7 +9,7 @@ int main(int argc, char *argv[]) {
 
 	lift.construct_labels();
 
-	for (const bunit &c : lift.instructions) {
+	for (const vins &c : lift.instructions) {
 		std::cout << std::hex << '[' << c.addr << "] " << std::dec;
 
 		std::cout << c << '\n';
