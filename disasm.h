@@ -2,12 +2,13 @@
 #include <cstdint>
 #include <capstone/capstone.h>
 #include <list>
+#include <sstream>
 
 struct bunit {
-	uint8_t data;
+	std::string mnemonic;
+	std::string operands;
 	cs_insn in;
 	uint64_t addr;
-	uint64_t new_addr;
 	cs_detail detail;
 
 	std::string target_label;
@@ -17,11 +18,33 @@ struct bunit {
 		in = p;
 		this->addr = p.address;
 		detail = *p.detail;
+
+		mnemonic = p.mnemonic;
+		operands = p.op_str;
+
+		uint64_t dum;
+		if (calculate_target_address(&dum)) {
+			char c;
+			int i = 0;
+			while (true) {
+				c = operands[i];
+				if (c == '#' || c == '[' || c == 0)
+					break;
+				++i;
+			}
+			if (c == '#')
+				operands = operands.substr(0, i) + "%m";
+			else if (c == '[')
+				operands = operands.substr(0, i) + "=%m";
+		}
 	}
 	bunit(uint8_t data, uint64_t addr) {
-		this->data = data;
+		mnemonic = ".byte";
+		std::stringstream ss;
+		ss << std::hex << +data;
+		operands = ss.str();
 		this->addr = addr;
-		in.id = 0; // invalid instruction, to mark this struct as data
+		in.id = 0;
 	}
 	bunit(const std::string s, uint64_t addr);
 
@@ -32,38 +55,22 @@ struct bunit {
 	}
 
 	friend std::ostream& operator<<(std::ostream& os, const bunit &b) {
-		if (false == b.label.empty()) {
+		if (b.label.length()) {
 			os << b.label << ": ";
 		}
-
-		if (b.in.id == 0) {
-			os << ".byte " << +b.data;
-			return os;
-		}
-
-		os << b.in.mnemonic << ' ';
-		if (false == b.target_label.empty()) {
-			/* replace immediate value with label */
-			int i, j;
-			for (i = 0; b.in.op_str[i] != '#'; ++i);
-			j = i + 1;
-			while (true) {
-				char c = b.in.op_str[j];
-				if (c == 'x' || '0' <= c && c <= '9'
-					|| 'a' <= c && c <= 'f'
-					|| 'A' <= c && c <= 'F') {
-					++j;
-					continue;
+		os << b.mnemonic << ' ';
+		for (int i = 0; i < b.operands.length(); ++i) {
+			char c = b.operands[i];
+			if (c == '%') {
+				++i;
+				switch (b.operands[i]) {
+				case 'm':
+					os << b.target_label;
 				}
-				break;
 			}
-			os.write(b.in.op_str, i + 1);
-
-			os << b.target_label;
-
-			os << (b.in.op_str + j);
-		} else {
-			os << b.in.op_str;
+			else {
+				os << c;
+			}
 		}
 		return os;
 	}

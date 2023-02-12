@@ -187,40 +187,6 @@ bunit::bunit(const std::string s, uint64_t addr) {
 	*this = t[0];
 }
 
-void dump_text(ELFIO::elfio& writer, const std::list<bunit> &d) {
-	ELFIO::section *text;
-	for (int i = 0; i < writer.sections.size(); ++i) {
-		if (writer.sections[i]->get_name() == ".text") {
-			text = writer.sections[i];
-		}
-	}
-
-	int total_size = 0;
-	for (const bunit &b : d) {
-		total_size += b.size();
-	}
-	std::vector<uint8_t> dump(total_size);
-	int i = 0;
-	for (const bunit &b : d) {
-		if (b.in.id == 0) {
-			dump[i] = b.data;
-			i++;
-		} else if (b.target_label.length() != 0) {
-			std::stringstream assembly;
-			assembly << b;
-			std::vector<uint8_t> tmp = assemble(assembly.str());
-			std::copy(tmp.begin(), tmp.end(), &dump[i]);
-			i += tmp.size();
-			if (tmp.size() != b.size())
-				std::cout << "resized: " << b << ' ' << b.size() << ' ' << tmp.size() << '\n';
-		} else {
-			std::copy(b.in.bytes, b.in.bytes + b.size(), &dump[i]);
-			i += b.size();
-		}
-	}
-	text->set_data((const char *)&dump[0], dump.size());
-}
-
 void fix_address(std::list<bunit> &x) {
 	uint64_t curr_addr = x.begin()->addr;
 	for (bunit &b : x) {
