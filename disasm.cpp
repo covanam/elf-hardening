@@ -253,7 +253,7 @@ vins::vins(const cs_insn &in) {
 vins::vins(uint8_t data, uint64_t addr) {
 	mnemonic = ".byte";
 	std::stringstream ss;
-	ss << std::hex << +data;
+	ss << "0x" << std::hex << +data;
 	operands = ss.str();
 	this->addr = addr;
 	in.id = 0;
