@@ -181,18 +181,109 @@ std::vector<uint8_t> assemble(const std::string &s) {
 	return ret;
 }
 
+static bool calculate_target_address(cs_detail *detail, uint64_t *addr) {
+	bool use_pc = false;
+	bool use_imm = false;
+	int imm;
+
+	for (
+		const cs_arm_op *op = detail->arm.operands;
+		op < detail->arm.operands + detail->arm.op_count;
+		++op
+	) {
+		switch (op->type) {
+		case ARM_OP_MEM:
+			use_imm = true;
+			imm = op->mem.disp;
+			if (op->mem.base == ARM_REG_PC)
+				use_pc = true;
+			break;
+		case ARM_OP_REG:
+			if (op->reg == ARM_REG_PC)
+				use_pc = true;
+			break;
+		case ARM_OP_IMM:
+			use_imm = true;
+			imm = op->imm;
+			break;
+		default:
+			break;
+		}
+	}
+
+	for (int i = 0; i < detail->groups_count; ++i) {
+		if (detail->groups[i] == ARM_GRP_BRANCH_RELATIVE) {
+			*addr = imm;
+			return true;
+		}
+	}
+
+	if (use_pc && use_imm) {
+		uint64_t pc = (*addr + 4) & ~(uint64_t)2;
+		*addr = pc + imm;
+		return true;
+	} else {
+		return false;;
+	}
+}
+
+vins::vins(const cs_insn &in) {
+	this->in = in;
+	this->addr = in.address;
+	detail = *in.detail;
+
+	mnemonic = in.mnemonic;
+	operands = in.op_str;
+
+	uint64_t dum;
+	if (calculate_target_address(&detail, &dum)) {
+		char c;
+		int i = 0;
+		while (true) {
+			c = operands[i];
+			if (c == '#' || c == '[' || c == 0)
+				break;
+			++i;
+		}
+		if (c == '#' || c == '[')
+			operands = operands.substr(0, i) + "%m";
+	}
+}
+
+vins::vins(uint8_t data, uint64_t addr) {
+	mnemonic = ".byte";
+	std::stringstream ss;
+	ss << std::hex << +data;
+	operands = ss.str();
+	this->addr = addr;
+	in.id = 0;
+}
+
 vins::vins(const std::string s, uint64_t addr) {
 	std::vector<uint8_t> bin = assemble(s);
 	static std::vector<vins> t = code_to_bunit(&bin[0], bin.size(), addr);
 	*this = t[0];
 }
 
-void fix_address(std::list<vins> &x) {
-	uint64_t curr_addr = x.begin()->addr;
-	for (vins &b : x) {
-		b.addr = curr_addr;
-		curr_addr += b.size();
+std::ostream& operator<<(std::ostream& os, const vins &b) {
+	if (b.label.length()) {
+		os << b.label << ": ";
 	}
+	os << b.mnemonic << ' ';
+	for (int i = 0; i < b.operands.length(); ++i) {
+		char c = b.operands[i];
+		if (c == '%') {
+			++i;
+			switch (b.operands[i]) {
+			case 'm':
+				os << b.target_label;
+			}
+		}
+		else {
+			os << c;
+		}
+	}
+	return os;
 }
 
 void dump_text(ELFIO::elfio& writer, const std::list<vins> &d) {
@@ -270,12 +361,15 @@ void lifter::construct_labels() {
 	int local_label_counter = 0;
 
 	for (vins& in : this->instructions) {
-		uint64_t addr;
+		uint64_t addr = in.addr;
+
+		if (in.in.id == 0)
+			continue; // data
 
 		if (in.target_label.size() != 0)
 			continue;
 
-		if (!in.calculate_target_address(&addr))
+		if (!calculate_target_address(&in.detail, &addr))
 			continue;
 		auto temp = std::find_if(instructions.begin(), instructions.end(),
 			[addr](vins &t) { return addr == t.addr; });
