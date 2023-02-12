@@ -21,7 +21,10 @@ static std::list<vins> disassemble(const uint8_t *data, int size, uint64_t addr)
 		/* #TODO */
 	}
 	cs_option(handle, CS_OPT_DETAIL, CS_OPT_ON);
-	count = cs_disasm(handle, data, size, addr, 0, &insn);
+	if (size)
+		count = cs_disasm(handle, data, size, addr, 0, &insn);
+	else
+		count = cs_disasm(handle, data, 8, addr, 1, &insn);
 
 	if (count > 0) {
 		size_t j;
@@ -231,13 +234,45 @@ std::ostream& operator<<(std::ostream& os, const vins &b) {
 	return os;
 }
 
+static void update_symtab(section *symtab, uint64_t old, uint64_t nnew) {
+	for (int i = 0; i < symtab->get_size() / sizeof(Elf32_Sym); ++i) {
+		Elf32_Sym *sym = ((Elf32_Sym *)symtab->get_data()) + i;
+		if (sym->st_value == old)
+			sym->st_value == nnew;
+	}
+}
+
+static void update_reltab(section *reltab, uint64_t old, uint64_t nnew) {
+	for (int i = 0; i < reltab->get_size() / sizeof(Elf32_Rel); ++i) {
+		Elf32_Rel *rel = ((Elf32_Rel *)reltab->get_data()) + i;
+		if (rel->r_offset == old)
+			rel->r_offset == nnew;
+	}
+}
+
 void lifter::save(std::string file) {
 	std::stringstream assembly;
 	for (const vins &b : this->instructions) {
 		assembly << b << ';';
 	}
-	std::vector<uint8_t> tmp = assemble(assembly.str());
-	text_sec->set_data((const char *)&tmp[0], tmp.size());
+	std::vector<uint8_t> bin = assemble(assembly.str());
+	text_sec->set_data((const char *)&bin[0], bin.size());
+
+	uint64_t addr = 0;
+	for (vins vi : this->instructions) {
+		unsigned size;
+		if (vi.in.id) {
+			vins tmp = disassemble(&bin[addr], 0, addr).front();
+			size = tmp.in.size;
+		} else {
+			size = 1;
+		}
+
+		update_reltab(this->rel_sec, vi.addr, addr);
+		update_symtab(this->sym_sec, vi.addr, addr);
+
+		addr += size;
+	} 
 
 	reader.save(file);
 }
