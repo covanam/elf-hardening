@@ -195,6 +195,23 @@ void fix_address(std::list<bunit> &x) {
 	}
 }
 
+void dump_text(ELFIO::elfio& writer, const std::list<bunit> &d) {
+	ELFIO::section *text;
+	for (int i = 0; i < writer.sections.size(); ++i) {
+		if (writer.sections[i]->get_name() == ".text") {
+				text = writer.sections[i];
+		}
+	}
+
+	std::stringstream assembly;
+	for (const bunit &b : d) {
+		assembly << b << ';';
+	}
+	std::vector<uint8_t> tmp = assemble(assembly.str());
+	text->set_data((const char *)&tmp[0], tmp.size());
+}
+
+
 lifter::lifter(const ELFIO::elfio& reader) : reader(reader)
 {
 	instructions = disassemble(reader);

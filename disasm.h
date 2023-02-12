@@ -35,7 +35,7 @@ struct bunit {
 			if (c == '#')
 				operands = operands.substr(0, i) + "%m";
 			else if (c == '[')
-				operands = operands.substr(0, i) + "=%m";
+				operands = operands.substr(0, i) + "%m";
 		}
 	}
 	bunit(uint8_t data, uint64_t addr) {
