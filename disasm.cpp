@@ -11,7 +11,7 @@
 
 using namespace ELFIO;
 
-static std::list<vins> code_to_bunit(const uint8_t *p, int size, uint64_t addr) {
+static std::list<vins> disassemble(const uint8_t *data, int size, uint64_t addr) {
 	std::list<vins> ret;
 	csh handle;
 	cs_insn *insn;
@@ -21,7 +21,7 @@ static std::list<vins> code_to_bunit(const uint8_t *p, int size, uint64_t addr) 
 		/* #TODO */
 	}
 	cs_option(handle, CS_OPT_DETAIL, CS_OPT_ON);
-	count = cs_disasm(handle, p, size, addr, 0, &insn);
+	count = cs_disasm(handle, data, size, addr, 0, &insn);
 
 	if (count > 0) {
 		size_t j;
@@ -36,7 +36,7 @@ static std::list<vins> code_to_bunit(const uint8_t *p, int size, uint64_t addr) 
 	return ret;
 }
 
-std::list<vins> disassemble(const ELFIO::elfio& reader) {
+static std::list<vins> disassemble(const ELFIO::elfio& reader) {
 	std::list<vins> ret;
 
 	ELFIO::section *text = nullptr, *symtab;
@@ -92,7 +92,7 @@ std::list<vins> disassemble(const ELFIO::elfio& reader) {
 			}
 		}
 		else {
-			ret.splice(ret.end(), code_to_bunit(data, r.size, r.offset));
+			ret.splice(ret.end(), disassemble(data, r.size, r.offset));
 		}
 	}
 
@@ -206,9 +206,8 @@ vins::vins(uint8_t data, uint64_t addr) {
 }
 
 vins::vins(const std::string s, uint64_t addr) {
-	std::vector<uint8_t> bin = assemble(s);
-	static std::list<vins> t = code_to_bunit(&bin[0], bin.size(), addr);
-	*this = t.front();
+	this->addr = addr;
+	this->mnemonic = s;
 }
 
 std::ostream& operator<<(std::ostream& os, const vins &b) {
@@ -232,25 +231,20 @@ std::ostream& operator<<(std::ostream& os, const vins &b) {
 	return os;
 }
 
-void dump_text(ELFIO::elfio& writer, const std::list<vins> &d) {
-	ELFIO::section *text;
-	for (int i = 0; i < writer.sections.size(); ++i) {
-		if (writer.sections[i]->get_name() == ".text") {
-				text = writer.sections[i];
-		}
-	}
-
+void lifter::save(std::string file) {
 	std::stringstream assembly;
-	for (const vins &b : d) {
+	for (const vins &b : this->instructions) {
 		assembly << b << ';';
 	}
 	std::vector<uint8_t> tmp = assemble(assembly.str());
-	text->set_data((const char *)&tmp[0], tmp.size());
+	text_sec->set_data((const char *)&tmp[0], tmp.size());
+
+	reader.save(file);
 }
 
 
-lifter::lifter(const ELFIO::elfio& reader) : reader(reader)
-{
+lifter::lifter(std::string file) {
+	reader.load(file);
 	instructions = disassemble(reader);
 
 	for (int i = 0; i < reader.sections.size(); ++i) {
@@ -265,6 +259,8 @@ lifter::lifter(const ELFIO::elfio& reader) : reader(reader)
 			text_sec = psec;
 		}
 	}
+
+	construct_labels();
 }
 
 void lifter::construct_labels() {

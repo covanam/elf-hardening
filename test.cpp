@@ -2,12 +2,7 @@
 #include <iostream>
 #include <elfio/elfio.hpp>
 int main(int argc, char *argv[]) {
-	ELFIO::elfio reader;
-	reader.load(argv[1]);
-
-	lifter lift(reader);
-
-	lift.construct_labels();
+	lifter lift(argv[1]);
 
 	for (const vins &c : lift.instructions) {
 		std::cout << std::hex << '[' << c.addr << "] " << std::dec;
@@ -15,7 +10,5 @@ int main(int argc, char *argv[]) {
 		std::cout << c << '\n';
 	}
 
-	dump_text(reader, lift.instructions);
-
-	reader.save(argv[2]);
+	lift.save(argv[2]);
 }

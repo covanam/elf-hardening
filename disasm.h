@@ -4,7 +4,8 @@
 #include <list>
 #include <sstream>
 
-struct vins {
+class vins {
+public:
 	std::string mnemonic;
 	std::string operands;
 	cs_insn in;
@@ -18,27 +19,19 @@ struct vins {
 	vins(uint8_t data, uint64_t addr);
 	vins(const std::string s, uint64_t addr);
 
-	int size() const {
-		if (in.id != 0)
-			return in.size;
-		return 1;
-	}
-
 	friend std::ostream& operator<<(std::ostream& os, const vins &vi);
 };
 
-std::list<vins> disassemble(const ELFIO::elfio& reader);
-
-void dump_text(ELFIO::elfio& writer, const std::list<vins> &d);
-
-struct lifter {
-	lifter(const ELFIO::elfio& reader);
-
-	void construct_labels();
-
+class lifter {
+public:
+	lifter(std::string file);
+	void save(std::string file);
 	std::list<vins> instructions;
 
-	const ELFIO::elfio& reader;
+private:
+	void construct_labels();
+
+	ELFIO::elfio reader;
 	ELFIO::section *sym_sec;
 	ELFIO::section *rel_sec;
 	ELFIO::section *text_sec;
