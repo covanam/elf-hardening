@@ -237,6 +237,50 @@ std::ostream& operator<<(std::ostream& os, const vins &b) {
 	return os;
 }
 
+struct addr_update {
+	uint64_t old_addr;
+	uint64_t new_addr;
+};
+
+static void update_symbol_table(section *s, const std::vector<addr_update>& remap, int txt) {
+	Elf32_Sym *symtab = (Elf32_Sym *)s->get_data();
+	std::vector<int> addr_delta(s->get_size() / s->get_entry_size(), 0);
+
+	for (addr_update up : remap) {
+		for (int i = 0; i < s->get_size() / s->get_entry_size(); ++i) {
+			if (symtab[i].st_shndx != txt)
+				continue;
+
+			uint64_t rel_addr = symtab[i].st_value;
+			if (ELF_ST_TYPE(symtab[i].st_info) == STT_FUNC)
+				rel_addr &= ~((uint64_t)1);
+
+			if (rel_addr == up.old_addr) {
+				addr_delta[i] = up.new_addr - up.old_addr;
+			}
+		}
+	}
+
+	for (int i = 0; i < s->get_size() / s->get_entry_size(); ++i)
+		symtab[i].st_value += addr_delta[i];
+}
+
+static void update_relocation_table(section *s, const std::vector<addr_update>& remap) {
+	Elf32_Rel *reltab = (Elf32_Rel *)s->get_data();
+	std::vector<int> addr_delta(s->get_size() / s->get_entry_size(), 0);
+
+	for (addr_update up : remap) {
+		for (int i = 0; i < s->get_size() / s->get_entry_size(); ++i) {
+			if (reltab[i].r_offset == up.old_addr) {
+				addr_delta[i] = up.new_addr - up.old_addr;
+			}
+		}
+	}
+
+	for (int i = 0; i < s->get_size() / s->get_entry_size(); ++i)
+		reltab[i].r_offset += addr_delta[i];
+}
+
 void lifter::save(std::string file) {
 	std::stringstream assembly;
 	for (const vins &b : this->instructions) {
@@ -245,48 +289,34 @@ void lifter::save(std::string file) {
 	std::vector<uint8_t> bin = assemble(assembly.str());
 	text_sec->set_data((const char *)&bin[0], bin.size());
 
-	Elf32_Sym *symtab = (Elf32_Sym *)sym_sec->get_data();
-	Elf32_Rel *reltab = (Elf32_Rel *)rel_sec->get_data();
-	std::vector<int> sym_addr_delta(sym_sec->get_size() / sym_sec->get_entry_size(), 0);
-	std::vector<int> rel_addr_delta(rel_sec->get_size() / rel_sec->get_entry_size(), 0);
+	std::vector<addr_update> addr_update_map(this->instructions.size());
 
 	uint64_t addr = 0;
-	for (vins vi : this->instructions) {
+	auto vi = instructions.begin();
+	for (int i = 0; i < this->instructions.size(); ++i) {
 		unsigned size;
-		if (!vi.is_original || (vi.is_original && vi.in.id)) {
+		if (!vi->is_original || (vi->is_original && vi->in.id)) {
 			vins tmp = disassemble(&bin[addr], 0, addr).front();
 			size = tmp.in.size;
 		} else {
 			size = 1;
 		}
 
-		for (int i = 0; i < sym_sec->get_size() / sym_sec->get_entry_size(); ++i) {
-			if (reader.sections[symtab[i].st_shndx] != text_sec)
-				continue;
+		addr_update_map[i].old_addr = vi->addr;
+		addr_update_map[i].new_addr = addr;
 
-			uint64_t sym_addr = symtab[i].st_value;
-			if (ELF_ST_TYPE(symtab[i].st_info) == STT_FUNC)
-				sym_addr &= ~((uint64_t)1);
-
-			if (sym_addr == vi.addr) {
-				sym_addr_delta[i] = addr - vi.addr;
-			}
-		}
-
-		for (int i = 0; i < rel_sec->get_size() / rel_sec->get_entry_size(); ++i) {
-			if (reltab[i].r_offset == vi.addr) {
-				rel_addr_delta[i] = addr - vi.addr;
-			}
-		}
-
+		++vi;
 		addr += size;
 	}
 
-	for (int i = 0; i < sym_sec->get_size() / sym_sec->get_entry_size(); ++i)
-		symtab[i].st_value += sym_addr_delta[i];
+	for (int i = 0; i < reader.sections.size(); ++i) {
+		if (reader.sections[i]->get_name() == ".text") {
+			update_symbol_table(sym_sec, addr_update_map, i);
+			break;
+		}
+	}
 
-	for (int i = 0; i < rel_sec->get_size() / rel_sec->get_entry_size(); ++i)
-		reltab[i].r_offset += rel_addr_delta[i];
+	update_relocation_table(rel_sec, addr_update_map);
 
 	reader.save(file);
 }
