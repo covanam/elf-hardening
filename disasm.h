@@ -17,7 +17,9 @@ public:
 
 	vins(const cs_insn &in);
 	vins(uint8_t data, uint64_t addr);
-	vins(const std::string s, uint64_t addr);
+	vins(const std::string s);
+
+	bool is_original;
 
 	friend std::ostream& operator<<(std::ostream& os, const vins &vi);
 };

@@ -177,6 +177,7 @@ static bool calculate_target_address(cs_detail *detail, uint64_t *addr) {
 }
 
 vins::vins(const cs_insn &in) {
+	is_original = true;
 	this->in = in;
 	this->addr = in.address;
 	detail = *in.detail;
@@ -200,6 +201,7 @@ vins::vins(const cs_insn &in) {
 }
 
 vins::vins(uint8_t data, uint64_t addr) {
+	is_original = true;
 	mnemonic = ".byte";
 	std::stringstream ss;
 	ss << "0x" << std::hex << +data;
@@ -208,7 +210,8 @@ vins::vins(uint8_t data, uint64_t addr) {
 	in.id = 0;
 }
 
-vins::vins(const std::string s, uint64_t addr) {
+vins::vins(const std::string s) {
+	is_original = false;
 	this->addr = addr;
 	this->mnemonic = s;
 }
@@ -234,22 +237,6 @@ std::ostream& operator<<(std::ostream& os, const vins &b) {
 	return os;
 }
 
-static void update_symtab(section *symtab, uint64_t old, uint64_t nnew) {
-	for (int i = 0; i < symtab->get_size() / sizeof(Elf32_Sym); ++i) {
-		Elf32_Sym *sym = ((Elf32_Sym *)symtab->get_data()) + i;
-		if (sym->st_value == old)
-			sym->st_value == nnew;
-	}
-}
-
-static void update_reltab(section *reltab, uint64_t old, uint64_t nnew) {
-	for (int i = 0; i < reltab->get_size() / sizeof(Elf32_Rel); ++i) {
-		Elf32_Rel *rel = ((Elf32_Rel *)reltab->get_data()) + i;
-		if (rel->r_offset == old)
-			rel->r_offset == nnew;
-	}
-}
-
 void lifter::save(std::string file) {
 	std::stringstream assembly;
 	for (const vins &b : this->instructions) {
@@ -258,21 +245,48 @@ void lifter::save(std::string file) {
 	std::vector<uint8_t> bin = assemble(assembly.str());
 	text_sec->set_data((const char *)&bin[0], bin.size());
 
+	Elf32_Sym *symtab = (Elf32_Sym *)sym_sec->get_data();
+	Elf32_Rel *reltab = (Elf32_Rel *)rel_sec->get_data();
+	std::vector<int> sym_addr_delta(sym_sec->get_size() / sym_sec->get_entry_size(), 0);
+	std::vector<int> rel_addr_delta(rel_sec->get_size() / rel_sec->get_entry_size(), 0);
+
 	uint64_t addr = 0;
 	for (vins vi : this->instructions) {
 		unsigned size;
-		if (vi.in.id) {
+		if (!vi.is_original || (vi.is_original && vi.in.id)) {
 			vins tmp = disassemble(&bin[addr], 0, addr).front();
 			size = tmp.in.size;
 		} else {
 			size = 1;
 		}
 
-		update_reltab(this->rel_sec, vi.addr, addr);
-		update_symtab(this->sym_sec, vi.addr, addr);
+		for (int i = 0; i < sym_sec->get_size() / sym_sec->get_entry_size(); ++i) {
+			if (reader.sections[symtab[i].st_shndx] != text_sec)
+				continue;
+
+			uint64_t sym_addr = symtab[i].st_value;
+			if (ELF_ST_TYPE(symtab[i].st_info) == STT_FUNC)
+				sym_addr &= ~((uint64_t)1);
+
+			if (sym_addr == vi.addr) {
+				sym_addr_delta[i] = addr - vi.addr;
+			}
+		}
+
+		for (int i = 0; i < rel_sec->get_size() / rel_sec->get_entry_size(); ++i) {
+			if (reltab[i].r_offset == vi.addr) {
+				rel_addr_delta[i] = addr - vi.addr;
+			}
+		}
 
 		addr += size;
-	} 
+	}
+
+	for (int i = 0; i < sym_sec->get_size() / sym_sec->get_entry_size(); ++i)
+		symtab[i].st_value += sym_addr_delta[i];
+
+	for (int i = 0; i < rel_sec->get_size() / rel_sec->get_entry_size(); ++i)
+		reltab[i].r_offset += rel_addr_delta[i];
 
 	reader.save(file);
 }
