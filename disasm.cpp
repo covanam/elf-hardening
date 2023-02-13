@@ -281,19 +281,15 @@ static void update_relocation_table(section *s, const std::vector<addr_update>& 
 		reltab[i].r_offset += addr_delta[i];
 }
 
-void lifter::save(std::string file) {
-	std::stringstream assembly;
-	for (const vins &b : this->instructions) {
-		assembly << b << ';';
-	}
-	std::vector<uint8_t> bin = assemble(assembly.str());
-	text_sec->set_data((const char *)&bin[0], bin.size());
-
-	std::vector<addr_update> addr_update_map(this->instructions.size());
+static std::vector<addr_update> get_addr_changes(
+	const std::list<vins>& inl,
+	const std::vector<uint8_t>& bin
+) {
+	std::vector<addr_update> addr_update_map(inl.size());
 
 	uint64_t addr = 0;
-	auto vi = instructions.begin();
-	for (int i = 0; i < this->instructions.size(); ++i) {
+	auto vi = inl.begin();
+	for (int i = 0; i < inl.size(); ++i) {
 		unsigned size;
 		if (!vi->is_original || (vi->is_original && vi->in.id)) {
 			vins tmp = disassemble(&bin[addr], 0, addr).front();
@@ -308,6 +304,19 @@ void lifter::save(std::string file) {
 		++vi;
 		addr += size;
 	}
+
+	return addr_update_map;
+}
+
+void lifter::save(std::string file) {
+	std::stringstream assembly;
+	for (const vins &b : this->instructions) {
+		assembly << b << ';';
+	}
+	std::vector<uint8_t> bin = assemble(assembly.str());
+	text_sec->set_data((const char *)&bin[0], bin.size());
+
+	std::vector<addr_update> addr_update_map = get_addr_changes(instructions, bin);
 
 	for (int i = 0; i < reader.sections.size(); ++i) {
 		if (reader.sections[i]->get_name() == ".text") {
