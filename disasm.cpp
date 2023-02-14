@@ -278,6 +278,9 @@ static void update_symbol_table(section *s, const std::vector<addr_update>& rema
 }
 
 static void update_relocation_table(section *s, const std::vector<addr_update>& remap) {
+	if (!s)
+		return;
+
 	Elf32_Rel *reltab = (Elf32_Rel *)s->get_data();
 	std::vector<int> addr_delta(s->get_size() / s->get_entry_size(), 0);
 
@@ -384,6 +387,9 @@ static void merge_small_data(std::list<vins> &ins) {
 }
 
 void lifter::save(std::string file) {
+	if(!text_sec)
+		reader.save(file);
+
 	std::stringstream assembly;
 	for (const vins &b : this->instructions) {
 		assembly << b << ';';
@@ -408,8 +414,8 @@ void lifter::save(std::string file) {
 
 lifter::lifter(std::string file) {
 	reader.load(file);
-	instructions = disassemble(reader);
 
+	sym_sec = rel_sec = text_sec = nullptr;
 	for (int i = 0; i < reader.sections.size(); ++i) {
 		section* psec = reader.sections[i];
 		if (psec->get_type() == SHT_SYMTAB) {
@@ -423,11 +429,16 @@ lifter::lifter(std::string file) {
 		}
 	}
 
-	construct_labels();
+	if (!text_sec)
+		return;
+
+	instructions = disassemble(reader);
+	add_labels_from_symbol_table();
+	add_target_labels();
 	merge_small_data(instructions);
 }
 
-void lifter::construct_labels() {
+void lifter::add_labels_from_symbol_table() {
 	symbol_section_accessor symbols(reader, sym_sec);
 
 	for (unsigned int i = 1; i < symbols.get_symbols_num(); ++i) {
@@ -463,7 +474,9 @@ void lifter::construct_labels() {
 			}
 		}
 	}
+}
 
+void lifter::add_target_labels() {
 	int local_label_counter = 0;
 
 	for (vins& in : this->instructions) {

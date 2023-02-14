@@ -32,7 +32,8 @@ public:
 	std::list<vins> instructions;
 
 private:
-	void construct_labels();
+	void add_labels_from_symbol_table();
+	void add_target_labels(); 
 
 	ELFIO::elfio reader;
 	ELFIO::section *sym_sec;
