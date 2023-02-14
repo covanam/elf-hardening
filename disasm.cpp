@@ -212,8 +212,20 @@ vins::vins(uint8_t data, uint64_t addr) {
 
 vins::vins(const std::string s) {
 	is_original = false;
-	this->addr = addr;
-	this->mnemonic = s;
+	int i;
+	for (i = 0; i < s.length(); ++i) {
+		if (s[i] == ' ')
+			break;
+	}
+	mnemonic = s.substr(0, i);
+	operands = s.substr(i, s.length() - i);
+}
+
+bool vins::is_data() const {
+	return
+		mnemonic == ".word" ||
+		mnemonic == ".short" ||
+		mnemonic == ".byte";
 }
 
 std::ostream& operator<<(std::ostream& os, const vins &b) {
@@ -291,11 +303,16 @@ static std::vector<addr_update> get_addr_changes(
 	auto vi = inl.begin();
 	for (int i = 0; i < inl.size(); ++i) {
 		unsigned size;
-		if (!vi->is_original || (vi->is_original && vi->in.id)) {
+		if (!vi->is_data()) {
 			vins tmp = disassemble(&bin[addr], 0, addr).front();
 			size = tmp.in.size;
 		} else {
-			size = 1;
+			if (vi->mnemonic == ".byte")
+				size = 1;
+			else if (vi->mnemonic == ".short")
+				size = 2;
+			else
+				size = 4;
 		}
 
 		addr_update_map[i].old_addr = vi->addr;
@@ -306,6 +323,64 @@ static std::vector<addr_update> get_addr_changes(
 	}
 
 	return addr_update_map;
+}
+
+static bool four_bytes_to_word(std::list<vins> &l, std::list<vins>::iterator i) {
+	if ((i++)->mnemonic == ".byte" &&
+		i != l.end() && i->label.empty() && (i++)->mnemonic == ".byte" &&
+		i != l.end() && i->label.empty() && (i++)->mnemonic == ".byte" &&
+		i != l.end() && i->label.empty() && (i)->mnemonic == ".byte"
+	) {
+		uint32_t data = (uint32_t)std::stoi(i->operands, nullptr, 16) << 24;
+		l.erase(i--);
+		data |= (uint32_t)std::stoi(i->operands, nullptr, 16) << 16;
+		l.erase(i--);
+		data |= (uint32_t)std::stoi(i->operands, nullptr, 16) << 8;
+		l.erase(i--);
+		data |= (uint32_t)std::stoi(i->operands, nullptr, 16);
+		i->mnemonic = ".word";
+		i->operands = std::to_string(data);
+		return true;
+	}
+	return false;
+}
+
+static bool two_bytes_to_short(std::list<vins> &l, std::list<vins>::iterator i) {
+	if ((i++)->mnemonic == ".byte" &&
+		i != l.end() && i->label.empty() && i->mnemonic == ".byte"
+	) {
+		uint16_t data = (uint16_t)std::stoi(i->operands, nullptr, 16) << 8;
+		l.erase(i--);
+		data |= (uint16_t)std::stoi(i->operands, nullptr, 16);
+		i->mnemonic = ".short";
+		i->operands = std::to_string(data);
+		return true;
+	}
+	return false;
+}
+
+static bool two_short_to_word(std::list<vins> &l, std::list<vins>::iterator i) {
+	if ((i++)->mnemonic == ".short" &&
+		i != l.end() && i->label.empty() && i->mnemonic == ".short") {
+		uint32_t data = (uint32_t)std::stoi(i->operands, nullptr, 16) << 16;
+		l.erase(i--);
+		data |= (uint32_t)std::stoi(i->operands, nullptr, 16);
+		i->mnemonic = ".word";
+		i->operands = std::to_string(data);
+		return true;
+	}
+	return false;
+}
+
+static void merge_small_data(std::list<vins> &ins) {
+	for (auto i = ins.begin(); i != ins.end(); ++i) {
+		if (i->is_original)
+			std::cout << i->addr;
+		std::cout << '\t' << *i << '\n';
+		four_bytes_to_word(ins, i) ||
+		two_bytes_to_short(ins, i) ||
+		two_short_to_word(ins, i);
+	}
 }
 
 void lifter::save(std::string file) {
@@ -349,6 +424,7 @@ lifter::lifter(std::string file) {
 	}
 
 	construct_labels();
+	merge_small_data(instructions);
 }
 
 void lifter::construct_labels() {
@@ -393,7 +469,7 @@ void lifter::construct_labels() {
 	for (vins& in : this->instructions) {
 		uint64_t addr = in.addr;
 
-		if (in.in.id == 0)
+		if (in.is_data())
 			continue; // data
 
 		if (in.target_label.size() != 0)

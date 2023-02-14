@@ -20,6 +20,7 @@ public:
 	vins(const std::string s);
 
 	bool is_original;
+	bool is_data() const;
 
 	friend std::ostream& operator<<(std::ostream& os, const vins &vi);
 };
