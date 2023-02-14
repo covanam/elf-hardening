@@ -33,11 +33,17 @@ static void init_bss_section(void)
 
 __attribute__((naked)) void Reset_Handler(void)
 {
+	extern uint32_t _test_mem;
+	_test_mem = 0xffffffff;
 	init_data_section();
 
 	init_bss_section();
 
 	main();
+
+	while (1) {
+		__asm("wfi");
+	}
 }
 
 void Default_Handler(void)
