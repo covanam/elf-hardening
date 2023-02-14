@@ -421,7 +421,7 @@ lifter::lifter(std::string file) {
 		if (psec->get_type() == SHT_SYMTAB) {
 			sym_sec = psec;
 		}
-		else if (psec->get_type() == SHT_REL) {
+		else if (reader.sections[i]->get_name() == ".rel.text") {
 			rel_sec = psec;
 		}
 		else if (reader.sections[i]->get_name() == ".text") {
