@@ -1,3 +1,6 @@
 [submodule "ELFIO"]
 	path = ELFIO
 	url = git@github.com:serge1/ELFIO.git
+[submodule "test/tinycrypt"]
+	path = test/tinycrypt
+	url = git@github.com:intel/tinycrypt.git
