@@ -8,6 +8,7 @@
 #include <keystone/keystone.h>
 #include <keystone/arm.h>
 #include <sstream>
+#include <exception>
 
 using namespace ELFIO;
 
@@ -18,7 +19,7 @@ static std::list<vins> disassemble(const uint8_t *data, int size, uint64_t addr)
 	size_t count;
 
 	if (cs_open(CS_ARCH_ARM, (cs_mode)(CS_MODE_THUMB|CS_MODE_MCLASS), &handle) != CS_ERR_OK) {
-		/* #TODO */
+		throw std::runtime_error("cd_open() failed");
 	}
 	cs_option(handle, CS_OPT_DETAIL, CS_OPT_ON);
 	if (size)
@@ -112,11 +113,11 @@ std::vector<uint8_t> assemble(const std::string &s) {
 
 	err = ks_open(KS_ARCH_ARM, KS_MODE_THUMB, &ks);
 	if (err != KS_ERR_OK) {
-		/* #TODO */
+		throw std::runtime_error("ks_open() failed: " + std::to_string(ks_errno(ks)));
 	}
   
 	if (ks_asm(ks, s.c_str(), 0, &encode, &size, &count) != KS_ERR_OK) {
-		// #TODO
+		throw std::runtime_error("ks_asm() failed with asm: " + std::to_string(ks_errno(ks)));
 	} else {
 		ret.assign(encode, encode + size);
 	}
