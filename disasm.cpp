@@ -131,6 +131,7 @@ std::vector<uint8_t> assemble(const std::string &s) {
 }
 
 static bool calculate_target_address(cs_detail *detail, uint64_t *addr) {
+	// what about things like add r0, pc, #8?
 	bool use_pc = false;
 	bool use_imm = false;
 	int imm;
@@ -148,6 +149,8 @@ static bool calculate_target_address(cs_detail *detail, uint64_t *addr) {
 				use_pc = true;
 			break;
 		case ARM_OP_REG:
+			if (op == detail->arm.operands)
+				break; // skip destination register
 			if (op->reg == ARM_REG_PC)
 				use_pc = true;
 			break;
