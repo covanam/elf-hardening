@@ -17,12 +17,12 @@ int main(int argc, char *argv[]) {
 	int skip = 0;
 	for (auto vi = lift.instructions.begin(); vi != lift.instructions.end();) {
 		auto next = std::next(vi);
-		if (skip) {
-			skip--;
-			goto giangngu;
-		}
 		if (vi->mnemonic[0] == 'i' && vi->mnemonic[1] == 't') {
 			skip = 4;
+			goto giangngu;
+		}
+		if (skip) {
+			skip--;
 			goto giangngu;
 		}
 		if (vi->in.id) {
