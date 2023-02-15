@@ -33,15 +33,6 @@ def test(elffile):
         print(elffile, "\033[93mBad:\033[0m", value)
     qemu.kill()
 
-subprocess.run(["make"])
-
-for f in os.listdir("tinycrypt/tests"):
-    if f.endswith(".o"):
-        print("Instrumenting:", f)
-        subprocess.run(["../main", os.path.join("tinycrypt/tests", f)])
-
-subprocess.run(["make"])
-
 test("tinycrypt/tests/test_aes.elf")
 test("tinycrypt/tests/test_cbc_mode.elf")
 test("tinycrypt/tests/test_cmac_mode.elf")
