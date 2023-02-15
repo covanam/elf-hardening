@@ -317,9 +317,13 @@ static std::vector<addr_update> get_addr_changes(
 			else
 				size = 4;
 		}
-
-		addr_update_map[i].old_addr = vi->addr;
-		addr_update_map[i].new_addr = addr;
+		if (vi->is_original) {
+			addr_update_map[i].old_addr = vi->addr;
+			addr_update_map[i].new_addr = addr;
+		} else {
+			addr_update_map[i].old_addr = 0;
+			addr_update_map[i].new_addr = 0;
+		}
 
 		++vi;
 		addr += size;
@@ -377,22 +381,20 @@ static bool two_short_to_word(std::list<vins> &l, std::list<vins>::iterator i) {
 
 static void merge_small_data(std::list<vins> &ins) {
 	for (auto i = ins.begin(); i != ins.end(); ++i) {
-		if (i->is_original)
-			std::cout << i->addr;
-		std::cout << '\t' << *i << '\n';
 		four_bytes_to_word(ins, i) ||
 		two_bytes_to_short(ins, i) ||
 		two_short_to_word(ins, i);
 	}
 }
 
-void lifter::save(std::string file) {
-	if(!text_sec)
-		reader.save(file);
+bool lifter::save(std::string file) {
+	if(!text_sec) {
+		return reader.save(file);
+	}
 
 	std::stringstream assembly;
 	for (const vins &b : this->instructions) {
-		assembly << b << ';';
+		assembly << b << '\n';
 	}
 	std::vector<uint8_t> bin = assemble(assembly.str());
 	text_sec->set_data((const char *)&bin[0], bin.size());
@@ -408,12 +410,13 @@ void lifter::save(std::string file) {
 
 	update_relocation_table(rel_sec, addr_update_map);
 
-	reader.save(file);
+	return reader.save(file);
 }
 
 
-lifter::lifter(std::string file) {
-	reader.load(file);
+bool lifter::load(std::string file) {
+	if (!reader.load(file))
+		return false;
 
 	sym_sec = rel_sec = text_sec = nullptr;
 	for (int i = 0; i < reader.sections.size(); ++i) {
@@ -430,12 +433,14 @@ lifter::lifter(std::string file) {
 	}
 
 	if (!text_sec)
-		return;
+		return true;
 
 	instructions = disassemble(reader);
 	add_labels_from_symbol_table();
 	add_target_labels();
 	merge_small_data(instructions);
+
+	return true;
 }
 
 void lifter::add_labels_from_symbol_table() {

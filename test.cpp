@@ -8,9 +8,11 @@ int fastrand() {
 }
 
 int main(int argc, char *argv[]) {
-	lifter lift(argv[1]);
-
-	fastrand();fastrand();
+	lifter lift;
+	if (!lift.load(argv[1])) {
+		std::cerr << "Cannot open input file " << argv[1] << '\n';
+		return 1;
+	}
 
 	for (auto vi = lift.instructions.begin(); vi != lift.instructions.end();) {
 		auto next = std::next(vi);
@@ -22,12 +24,17 @@ int main(int argc, char *argv[]) {
 		vi = next;
 	}
 
+	/*
 	for (const vins &c : lift.instructions) {
 		if (c.is_original)
 			std::cout << std::hex << '[' << c.addr << "] " << std::dec;
 
 		std::cout << c << '\n';
 	}
+	*/
 
-	lift.save(argv[2]);
+	if (!lift.save(argv[argc-1])) {
+		std::cerr << "Cannot open output file: " << argv[argc-1] << '\n';
+		return 1;
+	}
 }
