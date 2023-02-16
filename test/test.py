@@ -22,6 +22,7 @@ def test(elffile):
 
         if value == "0xffffffff" and sleep_countdown != 0:
             sleep_countdown -= 1
+            print("Wait for binary to finish (%d)" % sleep_countdown, end='\r')
             time.sleep(1)
         else:
             break
