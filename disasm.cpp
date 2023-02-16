@@ -391,6 +391,18 @@ static void merge_small_data(std::list<vins> &ins) {
 	}
 }
 
+static void remove_nops(std::list<vins>& il) {
+	/* nops are used for alignment, which is also done by keystone. So it
+	   should be fine to remove them */
+	for (auto i = il.begin(); i != il.end();) {
+		auto next = std::next(i);
+		std::string& s = i->mnemonic;
+		if (s == "nop")
+			il.erase(i);
+		i = next;
+	}
+}
+
 bool lifter::save(std::string file) {
 	if(!text_sec) {
 		return reader.save(file);
@@ -443,6 +455,7 @@ bool lifter::load(std::string file) {
 	add_labels_from_symbol_table();
 	add_target_labels();
 	merge_small_data(instructions);
+	remove_nops(instructions);
 
 	return true;
 }
