@@ -9,6 +9,7 @@
 #include <keystone/arm.h>
 #include <sstream>
 #include <exception>
+#include <cassert>
 
 using namespace ELFIO;
 
@@ -139,53 +140,48 @@ open_fail:
 	throw std::runtime_error(msg);
 }
 
-static bool calculate_target_address(cs_detail *detail, uint64_t *addr) {
-	// what about things like add r0, pc, #8?
-	bool use_pc = false;
-	bool use_imm = false;
-	int imm;
-
-	for (
-		const cs_arm_op *op = detail->arm.operands;
-		op < detail->arm.operands + detail->arm.op_count;
-		++op
-	) {
-		switch (op->type) {
-		case ARM_OP_MEM:
-			use_imm = true;
-			imm = op->mem.disp;
-			if (op->mem.base == ARM_REG_PC)
-				use_pc = true;
-			break;
-		case ARM_OP_REG:
-			if (op == detail->arm.operands)
-				break; // skip destination register
-			if (op->reg == ARM_REG_PC)
-				use_pc = true;
-			break;
-		case ARM_OP_IMM:
-			use_imm = true;
-			imm = op->imm;
-			break;
-		default:
-			break;
+static int32_t get_imm(const cs_detail *detail) {
+	for (int i = 0; i < detail->arm.op_count; ++i) {
+		if (detail->arm.operands[i].type == ARM_OP_IMM) {
+			return detail->arm.operands[i].imm;
 		}
 	}
+	assert(0); // this should only be called when it is known there is imm
+	return 0;
+}
+
+static bool calculate_target_address(
+	const cs_insn *in,
+	const cs_detail *detail,
+	uint64_t *addr)
+{
+	// what about things like add r0, pc, #8?
 
 	for (int i = 0; i < detail->groups_count; ++i) {
 		if (detail->groups[i] == ARM_GRP_BRANCH_RELATIVE) {
-			*addr = imm;
+			*addr = get_imm(detail);
 			return true;
 		}
 	}
 
-	if (use_pc && use_imm) {
-		uint64_t pc = (*addr + 4) & ~(uint64_t)2;
-		*addr = pc + imm;
+	if (in->id == ARM_INS_ADR) {
+		uint64_t pc = (in->address + 4) & ~(uint64_t)2;
+		*addr = pc + get_imm(detail);
 		return true;
-	} else {
-		return false;;
 	}
+
+	for (int i = 0; i < detail->arm.op_count; ++i) {
+		const cs_arm_op &op = detail->arm.operands[i];
+		if (op.type == ARM_OP_MEM) {
+			if (op.mem.base == ARM_REG_PC) {
+				uint64_t pc = (in->address + 4) & ~(uint64_t)2;
+				*addr = pc + op.mem.disp;
+				return true;
+			}
+		}
+	}
+
+	return false;
 }
 
 vins::vins(const cs_insn &in) {
@@ -198,7 +194,7 @@ vins::vins(const cs_insn &in) {
 	operands = in.op_str;
 
 	uint64_t dum;
-	if (calculate_target_address(&detail, &dum)) {
+	if (calculate_target_address(&in, &detail, &dum)) {
 		char c;
 		int i = 0;
 		while (true) {
@@ -322,12 +318,18 @@ static std::vector<addr_update> get_addr_changes(
 			vins tmp = disassemble(&bin[addr], 0, addr).front();
 			size = tmp.in.size;
 		} else {
-			if (vi->mnemonic == ".byte")
+			if (vi->mnemonic == ".byte") {
 				size = 1;
-			else if (vi->mnemonic == ".short")
+			}
+			else if (vi->mnemonic == ".short") {
 				size = 2;
-			else
+				addr = (addr + 1) & ~(uint64_t)1;
+			}
+			else if ((vi->mnemonic == ".word")) {
 				size = 4;
+				addr = (addr + 3) & ~(uint64_t)3;
+			}
+			else assert(0);
 		}
 		if (vi->is_original) {
 			addr_update_map[i].old_addr = vi->addr;
@@ -417,7 +419,27 @@ void lifter::save(std::string file) {
 	}
 
 	std::stringstream assembly;
+
+	int align = 1;
 	for (const vins &b : this->instructions) {
+		if (b.mnemonic == ".word") {
+			if (align % 4)
+				assembly << ".align 2\n";
+			align = 4;
+		}
+		else if (b.mnemonic == ".short") {
+			if (align % 2)
+				assembly << ".align 1\n";
+			align = 2;
+		}
+		else if (b.mnemonic == ".byte") {
+			align = 1;
+		}
+		else if (!b.is_data()){
+			align = 2;
+		}
+		else assert(0);
+
 		assembly << b << '\n';
 	}
 	std::vector<uint8_t> bin = assemble(assembly.str());
@@ -512,7 +534,7 @@ void lifter::add_target_labels() {
 	int local_label_counter = 0;
 
 	for (vins& in : this->instructions) {
-		uint64_t addr = in.addr;
+		uint64_t addr;
 
 		if (in.is_data())
 			continue; // data
@@ -520,7 +542,7 @@ void lifter::add_target_labels() {
 		if (in.target_label.size() != 0)
 			continue;
 
-		if (!calculate_target_address(&in.detail, &addr))
+		if (!calculate_target_address(&in.in, &in.detail, &addr))
 			continue;
 		auto temp = std::find_if(instructions.begin(), instructions.end(),
 			[addr](vins &t) { return addr == t.addr; });
