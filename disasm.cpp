@@ -131,10 +131,11 @@ std::vector<uint8_t> assemble(const std::string &s) {
 	return ret;
 
 asm_fail:
+	err = ks_errno(ks);
 	ks_close(ks);
 open_fail:
 	std::string msg = "Assembling failed: ";
-	msg.append(ks_strerror(ks_errno(ks)));
+	msg.append(ks_strerror(err));
 	throw std::runtime_error(msg);
 }
 
