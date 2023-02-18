@@ -21,6 +21,10 @@ int main(int argc, char *argv[]) {
 			skip = 4;
 			goto giangngu;
 		}
+		if (vi->mnemonic.compare(0, 2, "cb", 2)) {
+			skip = 128;
+			goto giangngu;
+		}
 		if (skip) {
 			skip--;
 			goto giangngu;
