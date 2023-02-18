@@ -28,7 +28,7 @@ public:
 class lifter {
 public:
 	bool load(std::string file);
-	bool save(std::string file);
+	void save(std::string file);
 	std::list<vins> instructions;
 
 private:

@@ -113,11 +113,11 @@ std::vector<uint8_t> assemble(const std::string &s) {
 
 	err = ks_open(KS_ARCH_ARM, KS_MODE_THUMB, &ks);
 	if (err != KS_ERR_OK) {
-		throw std::runtime_error("ks_open() failed: " + std::to_string(ks_errno(ks)));
+		goto open_fail;
 	}
   
 	if (ks_asm(ks, s.c_str(), 0, &encode, &size, &count) != KS_ERR_OK) {
-		throw std::runtime_error("ks_asm() failed with asm: " + std::to_string(ks_errno(ks)));
+		goto asm_fail;
 	} else {
 		ret.assign(encode, encode + size);
 	}
@@ -129,6 +129,13 @@ std::vector<uint8_t> assemble(const std::string &s) {
 	ks_close(ks);
 
 	return ret;
+
+asm_fail:
+	ks_close(ks);
+open_fail:
+	std::string msg = "Assembling failed: ";
+	msg.append(ks_strerror(ks_errno(ks)));
+	throw std::runtime_error(msg);
 }
 
 static bool calculate_target_address(cs_detail *detail, uint64_t *addr) {
@@ -403,9 +410,10 @@ static void remove_nops(std::list<vins>& il) {
 	}
 }
 
-bool lifter::save(std::string file) {
+void lifter::save(std::string file) {
 	if(!text_sec) {
-		return reader.save(file);
+		if (!reader.save(file))
+			throw std::runtime_error("Failed to write to " + file);
 	}
 
 	std::stringstream assembly;
@@ -426,7 +434,9 @@ bool lifter::save(std::string file) {
 
 	update_relocation_table(rel_sec, addr_update_map);
 
-	return reader.save(file);
+	if (!reader.save(file)) {
+		throw std::runtime_error("Failed to write to " + file);
+	}
 }
 
 

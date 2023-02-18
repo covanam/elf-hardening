@@ -35,16 +35,20 @@ int main(int argc, char *argv[]) {
 	}
 
 	/*
-	for (const vins &c : lift.instructions) {
-		if (c.is_original)
-			std::cout << std::hex << '[' << c.addr << "] " << std::dec;
-
-		std::cout << c << '\n';
+	int skip = 0;
+	for (auto vi = lift.instructions.begin(); vi != lift.instructions.end(); ++vi) {
+		std::cout << *vi << " (";
+		if (!vi->is_data())
+			for (int i = 0; i < vi->detail.groups_count; ++i) {
+				std::cout << +vi->detail.groups[i] << ' ';
+			}
+		std::cout << ")\n";
 	}
 	*/
 
-	if (!lift.save(argv[argc-1])) {
-		std::cerr << "Cannot open output file: " << argv[argc-1] << '\n';
+	try { lift.save(argv[argc-1]); }
+	catch (std::runtime_error& e) {
+		std::cout << e.what() << '\n';
 		return 1;
 	}
 }
