@@ -11,7 +11,7 @@ def test(elffile):
     qemu = Popen(qemu_cmd.split(),stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL)
 
-    sleep_countdown = 60
+    sleep_countdown = 10
     while True:
         out = subprocess.getoutput(
             "gdb-multiarch -q %s \
