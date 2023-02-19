@@ -1,6 +1,8 @@
 #include "disasm.h"
 #include <iostream>
 #include <elfio/elfio.hpp>
+#include "analysis.h"
+
 int fastrand() { 
 	static int g_seed;
 	g_seed = (214013*g_seed+2531011); 
@@ -14,6 +16,13 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
+	std::cout << lift.instructions.size() << '\n';
+	std::list<basic_block> cfg = get_cfg(lift.instructions);
+	for (auto bb : cfg) {
+		std::cout << bb;
+	}
+
+	/*
 	int skip = 0;
 	for (auto vi = lift.instructions.begin(); vi != lift.instructions.end();) {
 		auto next = std::next(vi);
@@ -37,6 +46,7 @@ int main(int argc, char *argv[]) {
 		giangngu:
 		vi = next;
 	}
+	*/
 
 	/*
 	int skip = 0;
@@ -49,10 +59,11 @@ int main(int argc, char *argv[]) {
 		std::cout << ")\n";
 	}
 	*/
-
+	/*
 	try { lift.save(argv[argc-1]); }
 	catch (std::runtime_error& e) {
 		std::cout << e.what() << '\n';
 		return 1;
 	}
+	*/
 }

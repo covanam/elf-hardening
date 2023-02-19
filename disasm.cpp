@@ -158,6 +158,12 @@ static bool calculate_target_address(
 	// what about things like add r0, pc, #8?
 
 	for (int i = 0; i < detail->groups_count; ++i) {
+		if (detail->groups[i] == CS_GRP_CALL) {
+			return false;
+		}
+	}
+
+	for (int i = 0; i < detail->groups_count; ++i) {
 		if (detail->groups[i] == ARM_GRP_BRANCH_RELATIVE) {
 			*addr = get_imm(detail);
 			return true;
@@ -234,6 +240,52 @@ bool vins::is_data() const {
 		mnemonic == ".word" ||
 		mnemonic == ".short" ||
 		mnemonic == ".byte";
+}
+
+bool vins::is_jump() const {
+	assert(is_original);
+
+	if (is_data())
+		return false;
+
+	for (int i = 0; i < detail.groups_count; ++i) {
+		if (detail.groups[i] == CS_GRP_JUMP) {
+			return true;
+		}
+	}
+
+	if (in.id == ARM_INS_POP) {
+		for (int i = 0; i < detail.arm.op_count; ++i) {
+			if (detail.arm.operands[i].type == ARM_OP_REG &&
+			    detail.arm.operands[i].reg == ARM_REG_PC) {
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+bool vins::can_fall_through() const {
+	if (is_data())
+		return false;
+
+	if (detail.arm.cc != ARM_CC_AL)
+		return true;
+
+	if (in.id == ARM_INS_CBNZ || in.id == ARM_INS_CBZ)
+		return true;
+
+	for (int i = 0; i < detail.groups_count; ++i) {
+		if (detail.groups[i] == CS_GRP_CALL) {
+			return true;
+		}
+	}
+
+	if (this->is_jump())
+		return false;
+
+	return true;
 }
 
 std::ostream& operator<<(std::ostream& os, const vins &b) {

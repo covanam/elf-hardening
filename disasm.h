@@ -1,3 +1,6 @@
+#ifndef DISASM_H
+#define DISASM_H
+
 #include <elfio/elfio.hpp>
 #include <cstdint>
 #include <capstone/capstone.h>
@@ -21,6 +24,8 @@ public:
 
 	bool is_original;
 	bool is_data() const;
+	bool is_jump() const;
+	bool can_fall_through() const;
 
 	friend std::ostream& operator<<(std::ostream& os, const vins &vi);
 };
@@ -40,3 +45,5 @@ private:
 	ELFIO::section *rel_sec;
 	ELFIO::section *text_sec;
 };
+
+#endif //DISASM_H
