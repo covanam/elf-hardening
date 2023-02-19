@@ -2,19 +2,19 @@
 #include <cassert>
 
 std::ostream& operator<<(std::ostream& os, const basic_block& bb) {
-	os << "Basic block (" << std::hex << bb.instructions.front().addr << ")\n";
+	os << "Basic block (" << std::hex << bb.front().addr << ")\n";
 
 	os << "From:\n";
 	for (const auto i : bb.predecessors)
-		os << '\t' << i->instructions.front().addr << '\n';
+		os << '\t' << i->front().addr << '\n';
 
 	os << "To:\n";
 	for (const auto i : bb.successors)
 		if (i)
-			os << '\t' << i->instructions.front().addr << '\n';
+			os << '\t' << i->front().addr << '\n';
 
 	os << "Content:\n";
-	for (auto i : bb.instructions) {
+	for (auto i : bb) {
 		os << '\t' << i << '\n';
 	}
 	os << '\n';
@@ -40,7 +40,7 @@ static basic_block& find_bb_with_label(
 	const std::string& label)
 {
 	for (auto& bb : cfg) {
-		const std::string &s = bb.instructions.front().label;
+		const std::string &s = bb.front().label;
 		if (s == label) {
 			return bb;
 		}
@@ -76,7 +76,7 @@ std::list<basic_block> get_cfg(std::list<vins>& l) {
 	for (auto i = l.begin(); i != l.end();) {
 		auto next = std::next(i);
 
-		cur->instructions.splice(cur->instructions.end(), l, i);
+		cur->splice(cur->end(), l, i);
 
 		if (next == l.end())
 			break;
@@ -90,12 +90,12 @@ std::list<basic_block> get_cfg(std::list<vins>& l) {
 	}
 
 	for (auto i = cfg.begin(); i != cfg.end(); ++i) {
-		std::string &s = i->instructions.back().target_label;
+		std::string &s = i->back().target_label;
 
 		if (!s.empty())
 			link_basic_blocks(*i, find_bb_with_label(cfg, s));
 
-		if (i->instructions.back().can_fall_through()) {
+		if (i->back().can_fall_through()) {
 			link_next_basic_block(i, cfg);
 		}
 	}

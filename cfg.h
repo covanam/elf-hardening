@@ -4,10 +4,11 @@
 #include "disasm.h"
 #include <array>
 #include <iostream>
+#include <vector>
+#include <list>
 
-class basic_block {
+class basic_block : public std::list<vins> {
 public:
-	std::list<vins> instructions;
 	std::vector<basic_block*> predecessors;
 	std::array<basic_block*, 2> successors;
 	basic_block() {
