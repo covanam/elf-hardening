@@ -7,6 +7,14 @@
 #include <list>
 #include <sstream>
 
+class vreg {
+public:
+	int num;
+	vreg(int num) : num(num) {}
+	vreg() : num(-1) {}
+	friend std::ostream& operator<<(std::ostream& os, vreg r);
+};
+
 class vins {
 public:
 	std::string mnemonic;
@@ -26,6 +34,8 @@ public:
 	bool is_data() const;
 	bool is_jump() const;
 	bool can_fall_through() const;
+
+	std::vector<vreg> regs;
 
 	friend std::ostream& operator<<(std::ostream& os, const vins &vi);
 };

@@ -10,6 +10,7 @@
 #include <sstream>
 #include <exception>
 #include <cassert>
+#include <cctype>
 
 using namespace ELFIO;
 
@@ -190,6 +191,75 @@ static bool calculate_target_address(
 	return false;
 }
 
+static std::vector<vreg> extract_registers(std::string& operands) {
+	std::vector<vreg> regs;
+
+	for (int i = 0; i < operands.length(); ++i) {
+		vreg r;
+		if (!operands.compare(i, 3, "r10", 3) ||
+		    !operands.compare(i, 2, "sl", 2))
+			r = 10; 
+		else if (!operands.compare(i, 3, "r11", 3) ||
+		         !operands.compare(i, 2, "fp", 2))
+			r = 11;
+		else if (!operands.compare(i, 3, "r12", 3) ||
+		         !operands.compare(i, 2, "ip", 2))
+			r = 12;
+		else if (!operands.compare(i, 3, "r14", 3) ||
+		         !operands.compare(i, 2, "lr", 2))
+			r = 14;
+		else if (!operands.compare(i, 2, "r0", 2))
+			r = 0;
+		else if (!operands.compare(i, 2, "r1", 2))
+			r = 1;
+		else if (!operands.compare(i, 2, "r2", 2))
+			r = 2;
+		else if (!operands.compare(i, 2, "r3", 2))
+			r = 3;
+		else if (!operands.compare(i, 2, "r4", 2))
+			r = 4;
+		else if (!operands.compare(i, 2, "r5", 2))
+			r = 5;
+		else if (!operands.compare(i, 2, "r6", 2))
+			r = 6;
+		else if (!operands.compare(i, 2, "r7", 2))
+			r = 7;
+		else if (!operands.compare(i, 2, "r8", 2))
+			r = 8;
+		else if (!operands.compare(i, 2, "r9", 2) ||
+			 !operands.compare(i, 2, "sb", 2) ||
+			 !operands.compare(i, 2, "tr", 2))
+			r = 9;
+		else continue;
+
+		int num_char;
+		if (operands[i] == 'r' && r.num > 9)
+			num_char = 3;
+		else num_char = 2;
+
+		std::string s = std::to_string(regs.size());
+		int diff = s.size() + 1 - num_char;
+		if (diff > 0) {
+			operands.insert(i, diff, '*');
+			operands[i] = '%';
+			operands.replace(i + 1, s.size(), s);
+		}
+		else if (diff < 0) {
+			operands[i] = '%';
+			operands.replace(i + 1, s.size(), s);
+			operands.replace(i + 1 + s.size(), -diff, -diff, ' ');
+		}
+		else {
+			operands[i] = '%';
+			operands.replace(i + 1, s.size(), s);
+		}
+
+		regs.push_back(r);
+	}
+
+	return regs;
+}
+
 vins::vins(const cs_insn &in) {
 	is_original = true;
 	this->in = in;
@@ -212,6 +282,8 @@ vins::vins(const cs_insn &in) {
 		if (c == '#' || c == '[')
 			operands = operands.substr(0, i) + "%m";
 	}
+
+	this->regs = extract_registers(operands);
 }
 
 vins::vins(uint8_t data, uint64_t addr) {
@@ -288,22 +360,50 @@ bool vins::can_fall_through() const {
 	return true;
 }
 
+std::ostream& operator<<(std::ostream& os, vreg r) {
+	switch(r.num) {
+		case 9:
+			return os << "sb";
+		case 10:
+			return os << "sl";
+		case 11:
+			return os << "fp";
+		case 12:
+			return os << "ip";
+		case 14:
+			return os << "lr";
+		case 13:
+		case 15:
+			assert(0);
+		default:
+			return os << 'r' << r.num;
+	}
+}
+
 std::ostream& operator<<(std::ostream& os, const vins &b) {
 	if (b.label.length()) {
 		os << b.label << ": ";
 	}
 	os << b.mnemonic << ' ';
-	for (int i = 0; i < b.operands.length(); ++i) {
+	for (int i = 0; i < b.operands.length();) {
 		char c = b.operands[i];
 		if (c == '%') {
 			++i;
-			switch (b.operands[i]) {
-			case 'm':
+			if (b.operands[i] == 'm') {
 				os << b.target_label;
+				++i;
+			} else {
+				int reg_num = 0;
+				while (isdigit(b.operands[i])) {
+					reg_num = (b.operands[i] - '0') + 10 * reg_num;
+					++i;
+				}
+				os << b.regs[reg_num];
 			}
 		}
 		else {
 			os << c;
+			++i;
 		}
 	}
 	return os;
