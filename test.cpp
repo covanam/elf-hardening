@@ -1,7 +1,7 @@
 #include "disasm.h"
 #include <iostream>
 #include <elfio/elfio.hpp>
-#include "analysis.h"
+#include "cfg.h"
 
 int fastrand() { 
 	static int g_seed;

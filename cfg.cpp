@@ -1,4 +1,4 @@
-#include "analysis.h"
+#include "cfg.h"
 #include <cassert>
 
 std::ostream& operator<<(std::ostream& os, const basic_block& bb) {
