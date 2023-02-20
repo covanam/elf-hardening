@@ -676,8 +676,23 @@ void lifter::add_labels_from_symbol_table() {
 	}
 }
 
+static bool is_relocatable(uint64_t addr, const section *rel) {
+	if (!rel)
+		return false;
+
+	Elf32_Rel *reltab = (Elf32_Rel *)rel->get_data();
+
+	for (int i = 0; i < rel->get_size() / rel->get_entry_size(); ++i) {
+		if (reltab[i].r_offset == addr) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void lifter::add_target_labels() {
-	int local_label_counter = 0;
+	int label_cnt = 0;
 
 	for (vins& in : this->instructions) {
 		uint64_t addr;
@@ -696,8 +711,18 @@ void lifter::add_target_labels() {
 			continue;
 	
 		if (temp->label.empty()) {
-			temp->label = ".L" + std::to_string(local_label_counter);
-			local_label_counter++;
+			if (is_relocatable(in.addr, rel_sec)) {
+				temp->label = ".F" + std::to_string(label_cnt);
+				assert (&*temp == &in);
+			}
+			else {
+				temp->label = ".L" + std::to_string(label_cnt);
+			}
+			label_cnt++;
+		} else if (!temp->label.compare(0, 2, ".F")) {
+			// promote fake label to real one
+			temp->label[1] = 'L';
+			temp->target_label[1] = 'L';
 		}
 		
 		in.target_label = temp->label;
