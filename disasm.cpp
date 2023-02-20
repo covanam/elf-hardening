@@ -199,9 +199,15 @@ static std::vector<vreg> extract_registers(std::string& operands) {
 		else if (!operands.compare(i, 3, "r12", 3) ||
 		         !operands.compare(i, 2, "ip", 2))
 			r = 12;
+		else if (!operands.compare(i, 3, "r13", 3) ||
+		         !operands.compare(i, 2, "sp", 2))
+			r = 13;
 		else if (!operands.compare(i, 3, "r14", 3) ||
 		         !operands.compare(i, 2, "lr", 2))
 			r = 14;
+		else if (!operands.compare(i, 3, "r15", 3) ||
+		         !operands.compare(i, 2, "pc", 2))
+			r = 15;
 		else if (!operands.compare(i, 2, "r0", 2))
 			r = 0;
 		else if (!operands.compare(i, 2, "r1", 2))
@@ -382,8 +388,9 @@ std::ostream& operator<<(std::ostream& os, vreg r) {
 		case 14:
 			return os << "lr";
 		case 13:
+			return os << "sp";
 		case 15:
-			assert(0);
+			return os << "pc";
 		default:
 			return os << 'r' << r.num;
 	}
