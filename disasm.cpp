@@ -159,12 +159,6 @@ static bool calculate_target_address(
 	// what about things like add r0, pc, #8?
 
 	for (int i = 0; i < detail->groups_count; ++i) {
-		if (detail->groups[i] == CS_GRP_CALL) {
-			return false;
-		}
-	}
-
-	for (int i = 0; i < detail->groups_count; ++i) {
 		if (detail->groups[i] == ARM_GRP_BRANCH_RELATIVE) {
 			*addr = get_imm(detail);
 			return true;
