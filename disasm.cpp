@@ -332,6 +332,21 @@ bool vins::is_jump() const {
 	return false;
 }
 
+bool vins::is_call() const {
+	assert(is_original);
+
+	if (is_data())
+		return false;
+
+	for (int i = 0; i < detail.groups_count; ++i) {
+		if (detail.groups[i] == CS_GRP_CALL) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
 bool vins::can_fall_through() const {
 	if (is_data())
 		return false;

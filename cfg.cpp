@@ -32,7 +32,7 @@ static bool is_basic_block_end(const vins& v, const vins& next) {
 static bool is_basic_block_start(const vins& v) {
 	if (v.is_data())
 		return false;
-	return !v.label.empty();
+	return !v.label.empty() && !vins::is_fake_label(v.label);
 }
 
 static basic_block& find_bb_with_label(
@@ -92,7 +92,8 @@ std::list<basic_block> get_cfg(std::list<vins>& l) {
 	for (auto i = cfg.begin(); i != cfg.end(); ++i) {
 		std::string &s = i->back().target_label;
 
-		if (!s.empty())
+		if (!s.empty() && !vins::is_fake_label(s) &&
+		    i->back().is_jump() && !i->back().is_call())
 			link_basic_blocks(*i, find_bb_with_label(cfg, s));
 
 		if (i->back().can_fall_through()) {

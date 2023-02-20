@@ -33,7 +33,12 @@ public:
 	bool is_original;
 	bool is_data() const;
 	bool is_jump() const;
+	bool is_call() const;
 	bool can_fall_through() const;
+
+	static bool is_fake_label(const std::string &label) {
+		return !label.compare(0, 2, ".F");
+	}
 
 	std::vector<vreg> regs;
 
