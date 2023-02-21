@@ -257,24 +257,47 @@ static std::vector<vreg> extract_registers(std::string& operands) {
 	return regs;
 }
 
+static int capstone_id_to_ours(unsigned int cs_id) {
+	switch (cs_id) {
+		case ARM_REG_R0: return 0;
+		case ARM_REG_R1: return 1;
+		case ARM_REG_R2: return 2;
+		case ARM_REG_R3: return 3;
+		case ARM_REG_R4: return 4;
+		case ARM_REG_R5: return 5;
+		case ARM_REG_R6: return 6;
+		case ARM_REG_R7: return 7;
+		case ARM_REG_R8: return 8;
+		case ARM_REG_R9: return 9;
+		case ARM_REG_R10: return 10;
+		case ARM_REG_R11: return 11;
+		case ARM_REG_R12: return 12;
+		case ARM_REG_R13: return 13;
+		case ARM_REG_R14: return 14;
+		case ARM_REG_R15: return 15;
+		default:
+			assert(0);
+	}
+}
+
 static void get_write_read_registers(
 	cs_insn in,
 	std::vector<vreg>& regs,
-	std::vector<vreg*>& write,
-	std::vector<vreg*>& read
+	std::vector<unsigned>& write,
+	std::vector<unsigned>& read
 ) {
-	if (0 == regs.size())
-		return;
 	int idx = 0;
+	if (0 == regs.size())
+		goto implicit_registers;
 	for (int i = 0; i < in.detail->arm.op_count; ++i) {
 		cs_arm_op op = in.detail->arm.operands[i];
 		if (op.type == ARM_OP_REG &&
 		    op.reg != ARM_REG_PC &&
 		    op.reg != ARM_REG_SP) {
 			if (op.access & CS_AC_READ)
-				read.push_back(&regs[idx]);
+				read.push_back(idx);
 			if (op.access & CS_AC_WRITE)
-				write.push_back(&regs[idx]);
+				write.push_back(idx);
 			if (++idx == regs.size())
 				return;
 		}
@@ -282,18 +305,18 @@ static void get_write_read_registers(
 			if (op.mem.base &&
 			    op.mem.base != ARM_REG_PC &&
 			    op.mem.base != ARM_REG_SP) {
-				read.push_back(&regs[idx]);
+				read.push_back(idx);
 				if (in.detail->arm.writeback)
-					write.push_back(&regs[idx]);
+					write.push_back(idx);
 				if (++idx == regs.size())
 					return;
 			}
 			if (op.mem.index &&
 			    op.mem.index != ARM_REG_PC &&
 			    op.mem.index != ARM_REG_SP) {
-				read.push_back(&regs[idx]);
+				read.push_back(idx);
 				if (in.detail->arm.writeback)
-					write.push_back(&regs[idx]);
+					write.push_back(idx);
 				if (++idx == regs.size())
 					return;
 			}
@@ -302,7 +325,35 @@ static void get_write_read_registers(
 			         in.detail->arm.writeback));
 		}
 	}
-	assert(0);
+
+implicit_registers:
+	for (int i = 0; i < in.detail->regs_read_count; ++i) {
+		if (in.detail->regs_read[i] == ARM_REG_PC ||
+		    in.detail->regs_read[i] == ARM_REG_SP)
+			continue;
+		vreg tmp(capstone_id_to_ours(in.detail->regs_read[i]));
+		regs.push_back(tmp);
+		read.push_back(regs.size() - 1);
+	}
+	for (int i = 0; i < in.detail->regs_write_count; ++i) {
+		if (in.detail->regs_write[i] == ARM_REG_PC ||
+		    in.detail->regs_write[i] == ARM_REG_SP)
+			continue;
+		vreg tmp(capstone_id_to_ours(in.detail->regs_write[i]));
+		regs.push_back(tmp);
+		write.push_back(regs.size() - 1);
+	}
+
+	if (in.id == ARM_INS_BL) {
+		for (int i = 0; i < 4; ++i) {
+			regs.push_back(vreg(i));
+			read.push_back(regs.size() - 1);
+		}
+		for (int i = 0; i < 2; ++i) {
+			regs.push_back(vreg(i));
+			write.push_back(regs.size() - 1);
+		}
+	}
 }
 
 vins::vins(const cs_insn &in) {
@@ -469,10 +520,10 @@ std::ostream& operator<<(std::ostream& os, const vins &b) {
 	}
 	std::cout << "; Use: ";
 	for (int i = 0; i < b.use.size(); ++i)
-		std::cout << *b.use[i] << ' ';
+		std::cout << b.regs[b.use[i]] << ' ';
 	std::cout << "; Gen: ";
 	for (int i = 0; i < b.gen.size(); ++i)
-		std::cout << *b.gen[i] << ' ';
+		std::cout << b.regs[b.gen[i]] << ' ';
 	return os;
 }
 
