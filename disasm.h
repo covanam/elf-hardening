@@ -6,6 +6,7 @@
 #include <capstone/capstone.h>
 #include <list>
 #include <sstream>
+#include <set>
 
 class vreg {
 public:
@@ -13,6 +14,19 @@ public:
 	vreg(int num) : num(num) {}
 	vreg() : num(-1) {}
 	friend std::ostream& operator<<(std::ostream& os, vreg r);
+
+	friend bool operator<(const vreg l, const vreg r) {
+		return l.num < r.num; }
+	friend bool operator>(const vreg l, const vreg r) {
+		return l.num > r.num; }
+	friend bool operator==(const vreg l, const vreg r) {
+		return l.num == r.num; }
+	friend bool operator!=(const vreg l, const vreg r) {
+		return l.num != r.num; }
+	friend bool operator<=(const vreg l, const vreg r) {
+		return l.num <= r.num; }
+	friend bool operator>=(const vreg l, const vreg r) {
+		return l.num >= r.num; }
 };
 
 class vins {
@@ -44,6 +58,8 @@ public:
 	std::vector<unsigned> use, gen;
 
 	friend std::ostream& operator<<(std::ostream& os, const vins &vi);
+
+	std::set<vreg> live_regs;
 };
 
 class lifter {

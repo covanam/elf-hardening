@@ -1,0 +1,8 @@
+#ifndef LIVENESS_H
+#define LIVENESS_H
+
+#include "cfg.h"
+
+void liveness_analysis(control_flow_graph &cfg);
+
+#endif // LIVENESS_H

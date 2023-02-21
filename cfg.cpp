@@ -12,10 +12,14 @@ std::ostream& operator<<(std::ostream& os, const basic_block& bb) {
 	for (const auto i : bb.successors)
 		if (i)
 			os << '\t' << i->front().addr << '\n';
+	os << std::dec;
 
 	os << "Content:\n";
 	for (auto i : bb) {
-		os << '\t' << i << '\n';
+		os << '\t' << i << " (";
+		for (auto r : i.live_regs)
+			os << r << ' ';
+		os << ")\n";
 	}
 	os << '\n';
 

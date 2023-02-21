@@ -14,10 +14,18 @@ public:
 	basic_block() {
 		successors[0] = nullptr;
 		successors[1] = nullptr;
+		visited = false;
 	}
+
+	bool is_returning() const { return !successors[0] && !successors[1]; }
+
+	bool visited; // for analysis
+
 	friend std::ostream& operator<<(std::ostream& os, const basic_block& bb);
 };
 
-std::list<basic_block> get_cfg(std::list<vins>& l);
+using control_flow_graph = std::list<basic_block>;
+
+control_flow_graph get_cfg(std::list<vins>& l);
 
 #endif //ANALYSIS_H

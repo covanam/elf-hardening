@@ -2,6 +2,7 @@
 #include <iostream>
 #include <elfio/elfio.hpp>
 #include "cfg.h"
+#include "liveness.h"
 
 int fastrand() { 
 	static int g_seed;
@@ -17,7 +18,8 @@ int main(int argc, char *argv[]) {
 	}
 
 	std::cout << lift.instructions.size() << '\n';
-	std::list<basic_block> cfg = get_cfg(lift.instructions);
+	control_flow_graph cfg = get_cfg(lift.instructions);
+	liveness_analysis(cfg);
 	for (auto bb : cfg) {
 		std::cout << bb;
 	}
