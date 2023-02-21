@@ -232,6 +232,9 @@ static std::vector<vreg> extract_registers(std::string& operands) {
 			r = 9;
 		else continue;
 
+		if (i && 'a' <= operands[i - 1] && operands[i - 1] <= 'z')
+			continue;
+
 		int num_char;
 		if (operands[i] == 'r' && r.num > 9)
 			num_char = 3;
@@ -260,6 +263,48 @@ static std::vector<vreg> extract_registers(std::string& operands) {
 	return regs;
 }
 
+static void get_write_read_registers(
+	cs_insn in,
+	std::vector<vreg>& regs,
+	std::vector<vreg*>& write,
+	std::vector<vreg*>& read
+) {
+	if (0 == regs.size())
+		return;
+	int idx = 0;
+	for (int i = 0; i < in.detail->arm.op_count; ++i) {
+		cs_arm_op op = in.detail->arm.operands[i];
+		if (op.type == ARM_OP_REG) {
+			if (op.access & CS_AC_READ)
+				read.push_back(&regs[idx]);
+			if (op.access & CS_AC_WRITE)
+				write.push_back(&regs[idx]);
+			if (++idx == regs.size())
+				return;
+		}
+		else if (op.type == ARM_OP_MEM) {
+			if (op.mem.base) {
+				read.push_back(&regs[idx]);
+				if (in.detail->arm.writeback)
+					write.push_back(&regs[idx]);
+				if (++idx == regs.size())
+					return;
+			}
+			if (op.mem.index) {
+				read.push_back(&regs[idx]);
+				if (in.detail->arm.writeback)
+					write.push_back(&regs[idx]);
+				if (++idx == regs.size())
+					return;
+			}
+
+			assert(!(op.mem.base && op.mem.index &&
+			         in.detail->arm.writeback));
+		}
+	}
+	assert(0);
+}
+
 vins::vins(const cs_insn &in) {
 	is_original = true;
 	this->in = in;
@@ -284,6 +329,7 @@ vins::vins(const cs_insn &in) {
 	}
 
 	this->regs = extract_registers(operands);
+	get_write_read_registers(in, regs, gen, use);
 }
 
 vins::vins(uint8_t data, uint64_t addr) {
@@ -422,6 +468,12 @@ std::ostream& operator<<(std::ostream& os, const vins &b) {
 			++i;
 		}
 	}
+	std::cout << "; Use: ";
+	for (int i = 0; i < b.use.size(); ++i)
+		std::cout << *b.use[i] << ' ';
+	std::cout << "; Gen: ";
+	for (int i = 0; i < b.gen.size(); ++i)
+		std::cout << *b.gen[i] << ' ';
 	return os;
 }
 

@@ -41,6 +41,7 @@ public:
 	}
 
 	std::vector<vreg> regs;
+	std::vector<vreg*> use, gen;
 
 	friend std::ostream& operator<<(std::ostream& os, const vins &vi);
 };
