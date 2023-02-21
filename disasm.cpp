@@ -276,7 +276,7 @@ static int capstone_id_to_ours(unsigned int cs_id) {
 		case ARM_REG_R14: return 14;
 		case ARM_REG_R15: return 15;
 		default:
-			assert(0);
+			return -1;
 	}
 }
 
@@ -331,16 +331,24 @@ implicit_registers:
 		if (in.detail->regs_read[i] == ARM_REG_PC ||
 		    in.detail->regs_read[i] == ARM_REG_SP)
 			continue;
-		vreg tmp(capstone_id_to_ours(in.detail->regs_read[i]));
-		regs.push_back(tmp);
+
+		int ins_id = capstone_id_to_ours(in.detail->regs_read[i]);
+		if (ins_id == -1)
+			continue;
+
+		regs.push_back(vreg(ins_id));
 		read.push_back(regs.size() - 1);
 	}
 	for (int i = 0; i < in.detail->regs_write_count; ++i) {
 		if (in.detail->regs_write[i] == ARM_REG_PC ||
 		    in.detail->regs_write[i] == ARM_REG_SP)
 			continue;
-		vreg tmp(capstone_id_to_ours(in.detail->regs_write[i]));
-		regs.push_back(tmp);
+
+		int ins_id = capstone_id_to_ours(in.detail->regs_write[i]);
+		if (ins_id == -1)
+			continue;
+
+		regs.push_back(vreg(ins_id));
 		write.push_back(regs.size() - 1);
 	}
 
