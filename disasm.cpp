@@ -199,15 +199,9 @@ static std::vector<vreg> extract_registers(std::string& operands) {
 		else if (!operands.compare(i, 3, "r12", 3) ||
 		         !operands.compare(i, 2, "ip", 2))
 			r = 12;
-		else if (!operands.compare(i, 3, "r13", 3) ||
-		         !operands.compare(i, 2, "sp", 2))
-			r = 13;
 		else if (!operands.compare(i, 3, "r14", 3) ||
 		         !operands.compare(i, 2, "lr", 2))
 			r = 14;
-		else if (!operands.compare(i, 3, "r15", 3) ||
-		         !operands.compare(i, 2, "pc", 2))
-			r = 15;
 		else if (!operands.compare(i, 2, "r0", 2))
 			r = 0;
 		else if (!operands.compare(i, 2, "r1", 2))
@@ -274,7 +268,9 @@ static void get_write_read_registers(
 	int idx = 0;
 	for (int i = 0; i < in.detail->arm.op_count; ++i) {
 		cs_arm_op op = in.detail->arm.operands[i];
-		if (op.type == ARM_OP_REG) {
+		if (op.type == ARM_OP_REG &&
+		    op.reg != ARM_REG_PC &&
+		    op.reg != ARM_REG_SP) {
 			if (op.access & CS_AC_READ)
 				read.push_back(&regs[idx]);
 			if (op.access & CS_AC_WRITE)
@@ -283,14 +279,18 @@ static void get_write_read_registers(
 				return;
 		}
 		else if (op.type == ARM_OP_MEM) {
-			if (op.mem.base) {
+			if (op.mem.base &&
+			    op.mem.base != ARM_REG_PC &&
+			    op.mem.base != ARM_REG_SP) {
 				read.push_back(&regs[idx]);
 				if (in.detail->arm.writeback)
 					write.push_back(&regs[idx]);
 				if (++idx == regs.size())
 					return;
 			}
-			if (op.mem.index) {
+			if (op.mem.index &&
+			    op.mem.index != ARM_REG_PC &&
+			    op.mem.index != ARM_REG_SP) {
 				read.push_back(&regs[idx]);
 				if (in.detail->arm.writeback)
 					write.push_back(&regs[idx]);
@@ -434,9 +434,8 @@ std::ostream& operator<<(std::ostream& os, vreg r) {
 		case 14:
 			return os << "lr";
 		case 13:
-			return os << "sp";
 		case 15:
-			return os << "pc";
+			assert(0);
 		default:
 			return os << 'r' << r.num;
 	}
