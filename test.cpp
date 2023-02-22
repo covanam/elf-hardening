@@ -17,12 +17,9 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	std::cout << lift.instructions.size() << '\n';
 	control_flow_graph cfg = get_cfg(lift.instructions);
 	liveness_analysis(cfg);
-	for (auto bb : cfg) {
-		std::cout << bb;
-	}
+	lift.instructions = cfg_dump(cfg);
 
 	/*
 	int skip = 0;
@@ -61,11 +58,10 @@ int main(int argc, char *argv[]) {
 		std::cout << ")\n";
 	}
 	*/
-	/*
+	
 	try { lift.save(argv[argc-1]); }
 	catch (std::runtime_error& e) {
 		std::cout << e.what() << '\n';
 		return 1;
 	}
-	*/
 }

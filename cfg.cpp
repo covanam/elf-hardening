@@ -74,6 +74,10 @@ static void link_next_basic_block(
 
 std::list<basic_block> get_cfg(std::list<vins>& l) {
 	std::list<basic_block> cfg;
+
+	if (l.empty())
+		return cfg;
+
 	cfg.push_back(basic_block());
 	basic_block *cur = &cfg.back();
 
@@ -106,4 +110,17 @@ std::list<basic_block> get_cfg(std::list<vins>& l) {
 	}
 
 	return cfg;
+}
+
+std::list<vins> cfg_dump(control_flow_graph& cfg) {
+	std::list<vins> dump;
+
+	for (control_flow_graph::iterator i = cfg.begin(); i != cfg.end();) {
+		auto next = std::next(i);
+		dump.splice(dump.end(), *i);
+		cfg.erase(i);
+		i = next;
+	}
+	
+	return dump;
 }

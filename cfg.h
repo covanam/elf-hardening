@@ -27,5 +27,6 @@ public:
 using control_flow_graph = std::list<basic_block>;
 
 control_flow_graph get_cfg(std::list<vins>& l);
+std::list<vins> cfg_dump(control_flow_graph& cfg);
 
 #endif //ANALYSIS_H
