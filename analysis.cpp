@@ -2,7 +2,7 @@
 #include "disasm.h"
 #include <set>
 #include <cassert>
-#include "liveness.h"
+#include "analysis.h"
 
 static void reverse_flow(basic_block& current, std::set<vreg> live_regs) {
 	for (auto i = current.rbegin(); i != current.rend(); ++i) {
