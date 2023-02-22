@@ -412,6 +412,15 @@ vins::vins(const std::string s) {
 	operands = s.substr(i, s.length() - i);
 }
 
+vins::vins(
+	const std::string& mnemonic, const std::string& operands,
+	std::initializer_list<vreg> regs
+) {
+	this->mnemonic = mnemonic;
+	this->operands = operands;
+	this->regs = regs;
+}
+
 bool vins::is_data() const {
 	return
 		mnemonic == ".word" ||
@@ -526,12 +535,6 @@ std::ostream& operator<<(std::ostream& os, const vins &b) {
 			++i;
 		}
 	}
-	std::cout << "; Use: ";
-	for (int i = 0; i < b.use.size(); ++i)
-		std::cout << b.regs[b.use[i]] << ' ';
-	std::cout << "; Gen: ";
-	for (int i = 0; i < b.gen.size(); ++i)
-		std::cout << b.regs[b.gen[i]] << ' ';
 	return os;
 }
 
