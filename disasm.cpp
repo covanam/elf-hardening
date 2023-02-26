@@ -401,24 +401,28 @@ vins::vins(uint8_t data, uint64_t addr) {
 	in.id = 0;
 }
 
-vins::vins(const std::string s) {
-	is_original = false;
-	int i;
-	for (i = 0; i < s.length(); ++i) {
-		if (s[i] == ' ')
-			break;
-	}
-	mnemonic = s.substr(0, i);
-	operands = s.substr(i, s.length() - i);
-}
+vins::vins(std::string mnemonic, std::string operands) {
+	for (int i = 0; i < operands.length(); ++i) {
+		if (operands[i] != 'v' ||
+		    operands[i + 1] < '0' ||
+		    operands[i + 1] > '3')
+			continue;
 
-vins::vins(
-	const std::string& mnemonic, const std::string& operands,
-	std::initializer_list<vreg> regs
-) {
-	this->mnemonic = mnemonic;
-	this->operands = operands;
-	this->regs = regs;
+		if (i && 'a' <= operands[i - 1] && operands[i - 1] <= 'z')
+			continue;
+
+		operands[i] = 'r';
+	}
+	std::vector<uint8_t> bin = assemble(mnemonic + " " + operands);
+	vins tmp = disassemble(&bin[0], 0, 0).front();
+
+	*this = std::move(tmp);
+
+	is_original = false;
+
+	for (int i = 0; i < regs.size(); ++i) {
+		regs[i].num += 16;
+	}
 }
 
 bool vins::is_data() const {
@@ -505,7 +509,9 @@ std::ostream& operator<<(std::ostream& os, vreg r) {
 		case 15:
 			assert(0);
 		default:
-			return os << 'r' << r.num;
+			if (r.num < 9)
+				return os << 'r' << r.num;
+			return os << 'v' << r.num - 16;
 	}
 }
 

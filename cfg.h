@@ -18,13 +18,25 @@ public:
 	}
 
 	bool is_returning() const { return !successors[0] && !successors[1]; }
+	std::string name() const {
+		if (this->front().label[0] != '.')
+			return this->front().label;
+		return std::string();
+	}
 
 	bool visited; // for analysis
 
 	friend std::ostream& operator<<(std::ostream& os, const basic_block& bb);
 };
 
-using control_flow_graph = std::list<basic_block>;
+class control_flow_graph : public std::list<basic_block> {
+public:
+	void reset() {
+		for (auto& bb : *this) {
+			bb.visited = false;
+		}
+	}
+};
 
 control_flow_graph get_cfg(std::list<vins>& l);
 std::list<vins> cfg_dump(control_flow_graph& cfg);

@@ -42,9 +42,7 @@ public:
 
 	vins(const cs_insn &in);
 	vins(uint8_t data, uint64_t addr);
-	vins(const std::string s);
-	vins(const std::string& mnemonic, const std::string& operands,
-	     std::initializer_list<vreg> regs);
+	vins(std::string mnemonic, std::string operands);
 
 	bool is_original;
 	bool is_data() const;

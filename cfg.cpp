@@ -72,8 +72,8 @@ static void link_next_basic_block(
 	link_basic_blocks(*pred, *succ);
 }
 
-std::list<basic_block> get_cfg(std::list<vins>& l) {
-	std::list<basic_block> cfg;
+control_flow_graph get_cfg(std::list<vins>& l) {
+	control_flow_graph cfg;
 
 	if (l.empty())
 		return cfg;

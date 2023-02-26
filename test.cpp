@@ -3,11 +3,33 @@
 #include <elfio/elfio.hpp>
 #include "cfg.h"
 #include "analysis.h"
+#include "reg-alloc.h"
 
 int fastrand() { 
 	static int g_seed;
 	g_seed = (214013*g_seed+2531011); 
 	return (g_seed>>16)&0x7FFF; 
+}
+
+static void replace_reg(basic_block& bb, std::map<vreg, int>& replace_map) {
+	if (bb.visited)
+		return;
+
+	for (vins& in : bb) {
+		for (vreg& reg : in.regs) {
+			auto f = replace_map.find(reg);
+			if (f != replace_map.end()) {
+				reg.num = f->second;
+			}
+		}
+	}
+
+	bb.visited = true;
+
+	for (basic_block* succ : bb.successors) {
+		if (succ)
+			replace_reg(*succ, replace_map);
+	}
 }
 
 int main(int argc, char *argv[]) {
@@ -17,42 +39,36 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
+	if (lift.instructions.empty()) {
+		try {
+			lift.save(argv[argc-1]);
+			return 0;
+		}
+		catch (std::runtime_error& e) {
+			std::cout << e.what() << '\n';
+			return 1;
+		}
+	}
+
 	control_flow_graph cfg = get_cfg(lift.instructions);
 	liveness_analysis(cfg);
-	lift.instructions = cfg_dump(cfg);
-	
-	int skip = 0;
-	for (auto vi = lift.instructions.begin(); vi != lift.instructions.end();) {
-		auto next = std::next(vi);
-		if (vi->mnemonic[0] == 'i' && vi->mnemonic[1] == 't') {
-			if (skip < 4)
-				skip = 4;
-			goto giangngu;
+
+	basic_block *entry = nullptr;
+	for (auto& bb : cfg) {
+		if (!bb.name().empty()) {
+			entry = &bb;
+			break;
 		}
-		if (!vi->mnemonic.compare(0, 2, "cb", 2)) {
-			skip = 128;
-			goto giangngu;
-		}
-		if (skip) {
-			skip--;
-			goto giangngu;
-		}
-		if (vi->in.id) {
-			if (fastrand() % 2 == 0) {
-				vreg free_reg = vreg();
-				for (free_reg.num = 0; free_reg.num < 16; free_reg.num++) {
-					if (vi->live_regs.find(free_reg) == vi->live_regs.end())
-						break;
-				}
-				if (free_reg.num == 16 || free_reg.num == 13 || free_reg.num == 15)
-					continue;
-				vins tmp("mov", "%0, #0xff", {free_reg});
-				lift.instructions.insert(vi, tmp);
-			}
-		}
-		giangngu:
-		vi = next;
 	}
+
+	std::map<vreg, int> alloc = register_allocate(cfg, *entry);
+
+	control_flow_graph::iterator start = cfg.begin();
+
+	cfg.reset();
+	replace_reg(*start, alloc);
+
+	lift.instructions = cfg_dump(cfg);
 	
 	try { lift.save(argv[argc-1]); }
 	catch (std::runtime_error& e) {
