@@ -33,22 +33,23 @@ class vins {
 public:
 	std::string mnemonic;
 	std::string operands;
-	cs_insn in;
 	uint64_t addr;
-	cs_detail detail;
 
 	std::string target_label;
 	std::string label;
 
+	vins() = default;
 	vins(const cs_insn &in);
 	vins(uint8_t data, uint64_t addr);
-	vins(std::string mnemonic, std::string operands);
+	static vins ins_cmp(vreg r, int imm);
+	static vins ins_b(const char *condition, const char *label);
 
-	bool is_original;
+	int size() const;
+
 	bool is_data() const;
-	bool is_jump() const;
-	bool is_call() const;
-	bool can_fall_through() const;
+	bool is_jump() const { return _is_jump; };
+	bool is_call() const { return _is_call; };
+	bool can_fall_through() const { return _can_fall_through; };
 
 	static bool is_fake_label(const std::string &label) {
 		return !label.compare(0, 2, ".F");
@@ -60,6 +61,9 @@ public:
 	friend std::ostream& operator<<(std::ostream& os, const vins &vi);
 
 	std::set<vreg> live_regs;
+private:
+	bool _is_jump, _is_call, _can_fall_through;
+	int _size;
 };
 
 class lifter {

@@ -11,13 +11,23 @@
 #include <exception>
 #include <cassert>
 #include <cctype>
+#include <map>
 
 using namespace ELFIO;
 
-static std::list<vins> disassemble(const uint8_t *data, int size, uint64_t addr) {
-	std::list<vins> ret;
+static bool is_jump(const cs_insn& in, const cs_detail& detail);
+static bool is_call(const cs_detail& detail);
+static bool can_fall_through(const cs_insn& in, const cs_detail& detail);
+static void add_target_labels(
+	std::list<vins>& instructions,
+	const std::map<uint64_t, uint64_t>&);
+static bool calculate_target_address(
+	const cs_insn *in,
+	const cs_detail *detail,
+	uint64_t *addr);
+
+size_t disassemble(const uint8_t *data, int size, uint64_t addr, cs_insn** in) {
 	csh handle;
-	cs_insn *insn;
 	size_t count;
 
 	if (cs_open(CS_ARCH_ARM, (cs_mode)(CS_MODE_THUMB|CS_MODE_MCLASS), &handle) != CS_ERR_OK) {
@@ -25,25 +35,19 @@ static std::list<vins> disassemble(const uint8_t *data, int size, uint64_t addr)
 	}
 	cs_option(handle, CS_OPT_DETAIL, CS_OPT_ON);
 	if (size)
-		count = cs_disasm(handle, data, size, addr, 0, &insn);
+		count = cs_disasm(handle, data, size, addr, 0, in);
 	else
-		count = cs_disasm(handle, data, 8, addr, 1, &insn);
+		count = cs_disasm(handle, data, 8, addr, 1, in);
 
-	if (count > 0) {
-		size_t j;
-		ret.assign(insn, insn + count);
-
-		cs_free(insn, count);
-	} else {
-		/* #TODO */
-	}
 	cs_close(&handle);
 
-	return ret;
+	return count;
 }
 
 static std::list<vins> disassemble(const ELFIO::elfio& reader) {
 	std::list<vins> ret;
+
+	std::map<uint64_t, uint64_t> target_addr_map;
 
 	ELFIO::section *text = nullptr, *symtab;
 	for (int i = 0; i < reader.sections.size(); ++i) {
@@ -98,9 +102,19 @@ static std::list<vins> disassemble(const ELFIO::elfio& reader) {
 			}
 		}
 		else {
-			ret.splice(ret.end(), disassemble(data, r.size, r.offset));
+			cs_insn *ins;
+			int n = disassemble(data, r.size, r.offset, &ins);
+			for (int i = 0; i < n; ++i) {
+				uint64_t addr;
+				ret.push_back(vins(ins[i]));
+				if (calculate_target_address(&ins[i], ins[i].detail, &addr)) {
+					target_addr_map.insert({ins[i].address, addr});
+				}
+			}
 		}
 	}
+
+	add_target_labels(ret, target_addr_map);
 
 	return ret;
 }
@@ -365,16 +379,13 @@ implicit_registers:
 }
 
 vins::vins(const cs_insn &in) {
-	is_original = true;
-	this->in = in;
 	this->addr = in.address;
-	detail = *in.detail;
 
 	mnemonic = in.mnemonic;
 	operands = in.op_str;
 
 	uint64_t dum;
-	if (calculate_target_address(&in, &detail, &dum)) {
+	if (calculate_target_address(&in, in.detail, &dum)) {
 		char c;
 		int i = 0;
 		while (true) {
@@ -387,42 +398,53 @@ vins::vins(const cs_insn &in) {
 			operands = operands.substr(0, i) + "%m";
 	}
 
+	_is_jump = ::is_jump(in, *in.detail);
+	_is_call = ::is_call(*in.detail);
+	_can_fall_through = ::can_fall_through(in, *in.detail);
+
+	_size = in.size;
+
 	this->regs = extract_registers(operands);
 	get_write_read_registers(in, regs, gen, use);
 }
 
 vins::vins(uint8_t data, uint64_t addr) {
-	is_original = true;
 	mnemonic = ".byte";
 	std::stringstream ss;
 	ss << "0x" << std::hex << +data;
 	operands = ss.str();
 	this->addr = addr;
-	in.id = 0;
+	_is_call = false;
+	_is_jump = false;
+	_can_fall_through = false;
+	_size = 1;
 }
 
-vins::vins(std::string mnemonic, std::string operands) {
-	for (int i = 0; i < operands.length(); ++i) {
-		if (operands[i] != 'v' ||
-		    operands[i + 1] < '0' ||
-		    operands[i + 1] > '3')
-			continue;
+vins vins::ins_cmp(vreg r, int imm) {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+	in.mnemonic = "cmp";
+	in.operands = "%0, #" + std::to_string(imm);
+	in.regs.push_back(r);
+	in.use.push_back(0);
+	in._is_call = false;
+	in._is_jump = false;
+	in._can_fall_through = true;
+	in._size = 0;
+	return in;
+}
 
-		if (i && 'a' <= operands[i - 1] && operands[i - 1] <= 'z')
-			continue;
-
-		operands[i] = 'r';
-	}
-	std::vector<uint8_t> bin = assemble(mnemonic + " " + operands);
-	vins tmp = disassemble(&bin[0], 0, 0).front();
-
-	*this = std::move(tmp);
-
-	is_original = false;
-
-	for (int i = 0; i < regs.size(); ++i) {
-		regs[i].num += 16;
-	}
+vins vins::ins_b(const char *condition, const char *label) {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+	in.mnemonic = std::string("b") + condition;
+	in.operands = "%m";
+	in.target_label = label;
+	in._is_call = false;
+	in._is_jump = true;
+	in._can_fall_through = (condition[0] != '\0');
+	in._size = 0;
+	return in;
 }
 
 bool vins::is_data() const {
@@ -432,12 +454,7 @@ bool vins::is_data() const {
 		mnemonic == ".byte";
 }
 
-bool vins::is_jump() const {
-	assert(is_original);
-
-	if (is_data())
-		return false;
-
+static bool is_jump(const cs_insn& in, const cs_detail& detail) {
 	for (int i = 0; i < detail.groups_count; ++i) {
 		if (detail.groups[i] == CS_GRP_JUMP) {
 			return true;
@@ -456,12 +473,7 @@ bool vins::is_jump() const {
 	return false;
 }
 
-bool vins::is_call() const {
-	assert(is_original);
-
-	if (is_data())
-		return false;
-
+static bool is_call(const cs_detail& detail) {
 	for (int i = 0; i < detail.groups_count; ++i) {
 		if (detail.groups[i] == CS_GRP_CALL) {
 			return true;
@@ -471,10 +483,7 @@ bool vins::is_call() const {
 	return false;
 }
 
-bool vins::can_fall_through() const {
-	if (is_data())
-		return false;
-
+static bool can_fall_through(const cs_insn& in, const cs_detail& detail) {
 	if (detail.arm.cc != ARM_CC_AL)
 		return true;
 
@@ -487,10 +496,15 @@ bool vins::can_fall_through() const {
 		}
 	}
 
-	if (this->is_jump())
+	if (is_jump(in, detail))
 		return false;
 
 	return true;
+}
+
+int vins::size() const {
+	assert(_size);
+	return _size;
 }
 
 std::ostream& operator<<(std::ostream& os, vreg r) {
@@ -602,8 +616,9 @@ static std::vector<addr_update> get_addr_changes(
 	for (int i = 0; i < inl.size(); ++i) {
 		unsigned size;
 		if (!vi->is_data()) {
-			vins tmp = disassemble(&bin[addr], 0, addr).front();
-			size = tmp.in.size;
+			cs_insn *in;
+			disassemble(&bin[addr], 0, addr, &in);
+			size = in->size;
 		} else {
 			if (vi->mnemonic == ".byte") {
 				size = 1;
@@ -618,13 +633,9 @@ static std::vector<addr_update> get_addr_changes(
 			}
 			else assert(0);
 		}
-		if (vi->is_original) {
-			addr_update_map[i].old_addr = vi->addr;
-			addr_update_map[i].new_addr = addr;
-		} else {
-			addr_update_map[i].old_addr = 0;
-			addr_update_map[i].new_addr = 0;
-		}
+
+		addr_update_map[i].old_addr = vi->addr;
+		addr_update_map[i].new_addr = addr;
 
 		++vi;
 		addr += size;
@@ -772,7 +783,6 @@ bool lifter::load(std::string file) {
 
 	instructions = disassemble(reader);
 	add_labels_from_symbol_table();
-	add_target_labels();
 	merge_small_data(instructions);
 	remove_nops(instructions);
 
@@ -802,14 +812,21 @@ void lifter::add_labels_from_symbol_table() {
 
 		if (text_sec != reader.sections[section_index])
 			continue;
+		
+		if (type != STT_FUNC)
+			continue;
 
 		if (name == "$t" || name == "$d")
 			continue;
 
 		for (vins& in : this->instructions) {
-			if (in.addr == value ||
-			    type == STT_FUNC && in.addr == value - 1
-			) {
+			if (in.addr == value - 1) {
+				if (in.label.length()) {
+					for (vins& inn : this->instructions) {
+						if (inn.target_label == in.label)
+							inn.target_label = name;
+					}
+				}
 				in.label = name;
 				break;
 			}
@@ -832,10 +849,13 @@ static bool is_relocatable(uint64_t addr, const section *rel) {
 	return false;
 }
 
-void lifter::add_target_labels() {
+static void add_target_labels(
+	std::list<vins>& instructions,
+	const std::map<uint64_t, uint64_t>& target_addr_map
+) {
 	int label_cnt = 0;
 
-	for (vins& in : this->instructions) {
+	for (vins& in : instructions) {
 		uint64_t addr;
 
 		if (in.is_data())
@@ -844,21 +864,19 @@ void lifter::add_target_labels() {
 		if (in.target_label.size() != 0)
 			continue;
 
-		if (!calculate_target_address(&in.in, &in.detail, &addr))
+		std::map<uint64_t, uint64_t>::const_iterator it = target_addr_map.find(in.addr);
+		if (it == target_addr_map.end())
 			continue;
+		
+		addr = it->second;
+		
 		auto temp = std::find_if(instructions.begin(), instructions.end(),
 			[addr](vins &t) { return addr == t.addr; });
-		if (temp == this->instructions.end())
+		if (temp == instructions.end())
 			continue;
 	
 		if (temp->label.empty()) {
-			if (is_relocatable(in.addr, rel_sec)) {
-				temp->label = ".F" + std::to_string(label_cnt);
-				assert (&*temp == &in);
-			}
-			else {
-				temp->label = ".L" + std::to_string(label_cnt);
-			}
+			temp->label = ".L" + std::to_string(label_cnt);
 			label_cnt++;
 		} else if (!temp->label.compare(0, 2, ".F")) {
 			// promote fake label to real one
