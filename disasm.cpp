@@ -26,23 +26,35 @@ static bool calculate_target_address(
 	const cs_detail *detail,
 	uint64_t *addr);
 
-size_t disassemble(const uint8_t *data, int size, uint64_t addr, cs_insn** in) {
-	csh handle;
-	size_t count;
+class capstone {
+public:
+	using iterator = cs_insn*;
+	capstone(const uint8_t *data, int size, uint64_t addr) {
+		csh handle;
 
-	if (cs_open(CS_ARCH_ARM, (cs_mode)(CS_MODE_THUMB|CS_MODE_MCLASS), &handle) != CS_ERR_OK) {
-		throw std::runtime_error("cd_open() failed");
+		if (cs_open(CS_ARCH_ARM, (cs_mode)(CS_MODE_THUMB|CS_MODE_MCLASS), &handle) != CS_ERR_OK) {
+			throw std::runtime_error("cd_open() failed");
+		}
+		cs_option(handle, CS_OPT_DETAIL, CS_OPT_ON);
+		if (size)
+			count = cs_disasm(handle, data, size, addr, 0, &insn);
+		else
+			count = cs_disasm(handle, data, 8, addr, 1, &insn);
+
+		cs_close(&handle);
 	}
-	cs_option(handle, CS_OPT_DETAIL, CS_OPT_ON);
-	if (size)
-		count = cs_disasm(handle, data, size, addr, 0, in);
-	else
-		count = cs_disasm(handle, data, 8, addr, 1, in);
 
-	cs_close(&handle);
+	cs_insn& operator[](size_t n) { return insn[n]; };
+	size_t size() const { return count; }
 
-	return count;
-}
+	iterator begin() { return insn; }
+	iterator end() { return insn + count; }
+
+	~capstone() { cs_free(insn, count); }
+private:
+	cs_insn *insn;
+	size_t count;
+};
 
 static std::list<vins> disassemble(const ELFIO::elfio& reader) {
 	std::list<vins> ret;
@@ -102,13 +114,12 @@ static std::list<vins> disassemble(const ELFIO::elfio& reader) {
 			}
 		}
 		else {
-			cs_insn *ins;
-			int n = disassemble(data, r.size, r.offset, &ins);
-			for (int i = 0; i < n; ++i) {
+			capstone disasm(data, r.size, r.offset);
+			for (cs_insn& csin : disasm) {
 				uint64_t addr;
-				ret.push_back(vins(ins[i]));
-				if (calculate_target_address(&ins[i], ins[i].detail, &addr)) {
-					target_addr_map.insert({ins[i].address, addr});
+				ret.push_back(vins(csin));
+				if (calculate_target_address(&csin, csin.detail, &addr)) {
+					target_addr_map.insert({csin.address, addr});
 				}
 			}
 		}
@@ -616,9 +627,8 @@ static std::vector<addr_update> get_addr_changes(
 	for (int i = 0; i < inl.size(); ++i) {
 		unsigned size;
 		if (!vi->is_data()) {
-			cs_insn *in;
-			disassemble(&bin[addr], 0, addr, &in);
-			size = in->size;
+			capstone disasm(&bin[addr], 0, addr);
+			size = disasm[0].size;
 		} else {
 			if (vi->mnemonic == ".byte") {
 				size = 1;
