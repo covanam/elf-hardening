@@ -3,7 +3,7 @@
 #include "reg-alloc.h"
 #include <limits>
 
-static constexpr int num_physical_reg = 10;
+static constexpr int num_physical_reg = 8;
 
 using register_interference_graph = std::map<vreg, std::set<vreg>>;
 
@@ -58,14 +58,18 @@ register_interference_graph get_rig(
 	rig.erase(vreg(1));
 	rig.erase(vreg(2));
 	rig.erase(vreg(3));
+	rig.erase(vreg(12));
 	rig.erase(vreg(13));
+	rig.erase(vreg(14));
 	rig.erase(vreg(15));
 	for (auto& r : rig) {
 		r.second.erase(vreg(0));
 		r.second.erase(vreg(1));
 		r.second.erase(vreg(2));
 		r.second.erase(vreg(3));
+		r.second.erase(vreg(12));
 		r.second.erase(vreg(13));
+		r.second.erase(vreg(14));
 		r.second.erase(vreg(15));
 	}
 
@@ -177,7 +181,7 @@ std::map<vreg, int> register_allocate(
 		}
 
 		if (n.num != 14) {
-			std::set<int> available = {4, 5, 6, 7, 8, 9, 10, 11, 12, 14};
+			std::set<int> available = {4, 5, 6, 7, 8, 9, 10, 11};
 
 			for (auto i : r->second) {
 				auto allocated = allocation.find(i);
@@ -187,7 +191,7 @@ std::map<vreg, int> register_allocate(
 			}
 
 			assert(available.begin() != available.end());
-			allocation.insert({r->first, *--available.end()});
+			allocation.insert({r->first, *available.begin()});
 		}
 		else {
 			allocation.insert({r->first, 14});

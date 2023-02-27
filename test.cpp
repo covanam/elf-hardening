@@ -50,6 +50,31 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
+	for (auto it = lift.instructions.begin(); it != lift.instructions.end();) {
+		auto next = std::next(it);
+		if (it->mnemonic == "cbnz") {
+			vins& cbnz = *it;
+			vins temp = vins::ins_cmp(cbnz.regs[0], 0);
+			temp.addr = cbnz.addr;
+			temp.label = cbnz.label;
+			lift.instructions.insert(it, std::move(temp));
+			temp = vins::ins_b("ne", cbnz.target_label.c_str());
+			lift.instructions.insert(it, std::move(temp));
+			lift.instructions.erase(it);
+		}
+		else if (it->mnemonic == "cbz") {
+			vins& cbnz = *it;
+			vins temp = vins::ins_cmp(cbnz.regs[0], 0);
+			temp.addr = cbnz.addr;
+			temp.label = cbnz.label;
+			lift.instructions.insert(it, std::move(temp));
+			temp = vins::ins_b("eq", cbnz.target_label.c_str());
+			lift.instructions.insert(it, std::move(temp));
+			lift.instructions.erase(it);
+		}
+		it = next;
+	}
+
 	control_flow_graph cfg = get_cfg(lift.instructions);
 	liveness_analysis(cfg);
 
