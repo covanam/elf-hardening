@@ -769,6 +769,52 @@ void lifter::save(std::string file) {
 	}
 }
 
+static bool is_relocatable(uint64_t addr, const section *rel) {
+	if (!rel)
+		return false;
+
+	Elf32_Rel *reltab = (Elf32_Rel *)rel->get_data();
+
+	for (int i = 0; i < rel->get_size() / rel->get_entry_size(); ++i) {
+		if (reltab[i].r_offset == addr) {
+			return true;
+		}
+	}
+
+	return false;
+}
+
+static void demote_to_fake_labels(
+	std::list<vins>& instructions,
+	const ELFIO::section *rel
+) {
+	for (vins& in : instructions) {
+		if (!is_relocatable(in.addr, rel))
+			continue;
+
+		if (in.is_data())
+			continue;
+		
+		bool others_jump_here = false;
+		for (vins& inn : instructions) {
+			if (&in == &inn)
+				continue;
+			if (inn.target_label == in.label) {
+				others_jump_here = true;
+				break;
+			}
+		}
+
+		if (others_jump_here)
+			continue;
+
+		if(in.target_label.compare(0, 2, ".L"))
+			continue;
+
+		in.label[1] = 'F';
+		in.target_label[1] = 'F';
+	}
+}
 
 bool lifter::load(std::string file) {
 	if (!reader.load(file))
@@ -793,6 +839,7 @@ bool lifter::load(std::string file) {
 
 	instructions = disassemble(reader);
 	add_labels_from_symbol_table();
+	demote_to_fake_labels(instructions, rel_sec);
 	merge_small_data(instructions);
 	remove_nops(instructions);
 
@@ -844,21 +891,6 @@ void lifter::add_labels_from_symbol_table() {
 	}
 }
 
-static bool is_relocatable(uint64_t addr, const section *rel) {
-	if (!rel)
-		return false;
-
-	Elf32_Rel *reltab = (Elf32_Rel *)rel->get_data();
-
-	for (int i = 0; i < rel->get_size() / rel->get_entry_size(); ++i) {
-		if (reltab[i].r_offset == addr) {
-			return true;
-		}
-	}
-
-	return false;
-}
-
 static void add_target_labels(
 	std::list<vins>& instructions,
 	const std::map<uint64_t, uint64_t>& target_addr_map
@@ -888,10 +920,6 @@ static void add_target_labels(
 		if (temp->label.empty()) {
 			temp->label = ".L" + std::to_string(label_cnt);
 			label_cnt++;
-		} else if (!temp->label.compare(0, 2, ".F")) {
-			// promote fake label to real one
-			temp->label[1] = 'L';
-			temp->target_label[1] = 'L';
 		}
 		
 		in.target_label = temp->label;
