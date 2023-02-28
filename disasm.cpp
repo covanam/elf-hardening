@@ -839,6 +839,33 @@ static void demote_to_fake_labels(
 	}
 }
 
+static void transform_cbnz_cbz(std::list<vins>& instructions) {
+	for (auto it = instructions.begin(); it != instructions.end();) {
+		auto next = std::next(it);
+		if (it->mnemonic == "cbnz") {
+			vins& cbnz = *it;
+			vins temp = vins::ins_cmp(cbnz.regs[0], 0);
+			temp.addr = cbnz.addr;
+			temp.label = cbnz.label;
+			instructions.insert(it, std::move(temp));
+			temp = vins::ins_b("ne", cbnz.target_label.c_str());
+			instructions.insert(it, std::move(temp));
+			instructions.erase(it);
+		}
+		else if (it->mnemonic == "cbz") {
+			vins& cbnz = *it;
+			vins temp = vins::ins_cmp(cbnz.regs[0], 0);
+			temp.addr = cbnz.addr;
+			temp.label = cbnz.label;
+			instructions.insert(it, std::move(temp));
+			temp = vins::ins_b("eq", cbnz.target_label.c_str());
+			instructions.insert(it, std::move(temp));
+			instructions.erase(it);
+		}
+		it = next;
+	}
+}
+
 bool lifter::load(std::string file) {
 	if (!reader.load(file))
 		return false;
@@ -865,6 +892,7 @@ bool lifter::load(std::string file) {
 	demote_to_fake_labels(instructions, rel_sec);
 	merge_small_data(instructions);
 	remove_nops(instructions);
+	transform_cbnz_cbz(instructions);
 
 	return true;
 }
