@@ -47,6 +47,7 @@ public:
 	static vins ins_mov(vreg r, int imm);
 
 	int size() const;
+	int imm() const { return _imm; }
 
 	bool is_data() const;
 	bool is_jump() const { return _is_jump; };
@@ -63,8 +64,10 @@ public:
 	friend std::ostream& operator<<(std::ostream& os, const vins &vi);
 
 	std::set<vreg> live_regs;
+	int stack_position;
 private:
 	bool _is_jump, _is_call, _can_fall_through;
+	int64_t _imm = 0;
 	int _size;
 };
 

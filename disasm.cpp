@@ -412,6 +412,14 @@ vins::vins(const cs_insn &in) {
 			operands = operands.substr(0, i) + "%m";
 	}
 
+	int imm_start = operands.find('#');
+	if (imm_start != std::string::npos) {
+		++imm_start;
+		size_t imm_len;
+		this->_imm = std::stoll(operands.substr(imm_start), &imm_len, 0);
+		operands.replace(imm_start, imm_len, "%i");
+	}
+
 	_is_jump = ::is_jump(in, *in.detail);
 	_is_call = ::is_call(*in.detail);
 	_can_fall_through = ::can_fall_through(in, *in.detail);
@@ -608,6 +616,9 @@ std::ostream& operator<<(std::ostream& os, const vins &b) {
 			++i;
 			if (b.operands[i] == 'm') {
 				os << b.target_label;
+				++i;
+			} else if (b.operands[i] == 'i') {
+				os << b._imm;
 				++i;
 			} else {
 				int reg_num = 0;
