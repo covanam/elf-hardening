@@ -53,6 +53,31 @@ int main(int argc, char *argv[]) {
 	control_flow_graph cfg = get_cfg(lift.instructions);
 	liveness_analysis(cfg);
 
+	int vnum = 16;
+	for (auto& bb : cfg) {
+		if (bb.front().is_data())
+			continue;
+		int skip = 0;
+		for (auto it = ++bb.begin(); it != bb.end(); ++it) {
+			if (!it->mnemonic.compare(0, 2, "it", 2)) {
+				skip = 4;
+				continue;
+			}
+			if (skip) {
+				skip--;
+				continue;
+			}
+			if (it->live_regs.size() < 8) {
+				bb.insert(it, vins::ins_mov(vnum, 0xff));
+				bb.insert(it, vins::ins_add(vnum, vnum, vnum));
+				vnum++;
+				break;
+			}
+		}
+	}
+
+	liveness_analysis(cfg);
+
 	for (auto& bb : cfg) {
 		if (!bb.name().empty()) {
 			std::map<vreg, int> alloc = register_allocate(cfg, bb);

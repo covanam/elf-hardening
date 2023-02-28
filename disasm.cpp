@@ -145,6 +145,8 @@ std::vector<uint8_t> assemble(const std::string &s) {
   
 	if (ks_asm(ks, s.c_str(), 0, &encode, &size, &count) != KS_ERR_OK) {
 		goto asm_fail;
+	} else if (count == 0 && s.length() != 0) {
+		goto asm_fail;
 	} else {
 		ret.assign(encode, encode + size);
 	}
@@ -161,6 +163,7 @@ asm_fail:
 	err = ks_errno(ks);
 	ks_close(ks);
 open_fail:
+	std::cout << "Trying to assemble:\n" << s;
 	std::string msg = "Assembling failed: ";
 	msg.append(ks_strerror(err));
 	throw std::runtime_error(msg);
@@ -478,6 +481,37 @@ vins vins::ins_b(const char *condition, const char *label) {
 	in._is_jump = true;
 	in._can_fall_through = (condition[0] != '\0');
 	in._size = 0;
+	return in;
+}
+
+vins vins::ins_add(vreg d, vreg r1, vreg r2) {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+	in.mnemonic = "add";
+	in.operands = "%0, %1, %2";
+	in._is_call = false;
+	in._is_jump = false;
+	in._can_fall_through = false;
+	in._size = 0;
+	in.regs = {d, r1, r2};
+	in.use = {1, 2};
+	in.gen = {0};
+
+	return in;
+}
+
+vins vins::ins_mov(vreg r, int imm) {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+	in.mnemonic = "mov";
+	in.operands = "%0, #" + std::to_string(imm);
+	in._is_call = false;
+	in._is_jump = false;
+	in._can_fall_through = false;
+	in._size = 0;
+	in.regs = {r};
+	in.gen = {0};
+
 	return in;
 }
 

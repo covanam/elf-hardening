@@ -29,6 +29,7 @@ static void reverse_flow(basic_block& current, std::set<vreg> live_regs) {
 
 void liveness_analysis(control_flow_graph& cfg) {
 	std::set<vreg> use_at_func_return = {0, 1, 4, 5, 6, 7, 8, 9, 10, 11};
+	cfg.reset();
 	for (auto bb = cfg.rbegin(); bb != cfg.rend(); ++bb) {
 		if (bb->front().is_data())
 			continue;
