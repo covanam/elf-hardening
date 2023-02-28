@@ -77,6 +77,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	liveness_analysis(cfg);
+	stack_offset_analysis(cfg);
 
 	for (auto& bb : cfg) {
 		if (!bb.name().empty()) {

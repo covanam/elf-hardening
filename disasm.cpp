@@ -227,9 +227,15 @@ static std::vector<vreg> extract_registers(std::string& operands) {
 		else if (!operands.compare(i, 3, "r12", 3) ||
 		         !operands.compare(i, 2, "ip", 2))
 			r = 12;
+		else if (!operands.compare(i, 3, "r13", 3) ||
+		         !operands.compare(i, 2, "sp", 2))
+			r = 13;
 		else if (!operands.compare(i, 3, "r14", 3) ||
 		         !operands.compare(i, 2, "lr", 2))
 			r = 14;
+		else if (!operands.compare(i, 3, "r15", 3) ||
+		         !operands.compare(i, 2, "pc", 2))
+			r = 15;
 		else if (!operands.compare(i, 2, "r0", 2))
 			r = 0;
 		else if (!operands.compare(i, 2, "r1", 2))
@@ -319,9 +325,7 @@ static void get_write_read_registers(
 		goto implicit_registers;
 	for (int i = 0; i < in.detail->arm.op_count; ++i) {
 		cs_arm_op op = in.detail->arm.operands[i];
-		if (op.type == ARM_OP_REG &&
-		    op.reg != ARM_REG_PC &&
-		    op.reg != ARM_REG_SP) {
+		if (op.type == ARM_OP_REG) {
 			if (op.access & CS_AC_READ)
 				read.push_back(idx);
 			if (op.access & CS_AC_WRITE)
@@ -330,18 +334,14 @@ static void get_write_read_registers(
 				return;
 		}
 		else if (op.type == ARM_OP_MEM) {
-			if (op.mem.base &&
-			    op.mem.base != ARM_REG_PC &&
-			    op.mem.base != ARM_REG_SP) {
+			if (op.mem.base) {
 				read.push_back(idx);
 				if (in.detail->arm.writeback)
 					write.push_back(idx);
 				if (++idx == regs.size())
 					return;
 			}
-			if (op.mem.index &&
-			    op.mem.index != ARM_REG_PC &&
-			    op.mem.index != ARM_REG_SP) {
+			if (op.mem.index) {
 				read.push_back(idx);
 				if (in.detail->arm.writeback)
 					write.push_back(idx);
@@ -356,10 +356,6 @@ static void get_write_read_registers(
 
 implicit_registers:
 	for (int i = 0; i < in.detail->regs_read_count; ++i) {
-		if (in.detail->regs_read[i] == ARM_REG_PC ||
-		    in.detail->regs_read[i] == ARM_REG_SP)
-			continue;
-
 		int ins_id = capstone_id_to_ours(in.detail->regs_read[i]);
 		if (ins_id == -1)
 			continue;
@@ -368,10 +364,6 @@ implicit_registers:
 		read.push_back(regs.size() - 1);
 	}
 	for (int i = 0; i < in.detail->regs_write_count; ++i) {
-		if (in.detail->regs_write[i] == ARM_REG_PC ||
-		    in.detail->regs_write[i] == ARM_REG_SP)
-			continue;
-
 		int ins_id = capstone_id_to_ours(in.detail->regs_write[i]);
 		if (ins_id == -1)
 			continue;
@@ -596,8 +588,9 @@ std::ostream& operator<<(std::ostream& os, vreg r) {
 		case 14:
 			return os << "lr";
 		case 13:
+			return os << "sp";
 		case 15:
-			assert(0);
+			return os << "pc";
 		default:
 			if (r.num < 9)
 				return os << 'r' << r.num;
