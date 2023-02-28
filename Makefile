@@ -1,4 +1,4 @@
-CXXFLAGS = -IELFIO -lcapstone -lkeystone
+CXXFLAGS = -g -IELFIO -lcapstone -lkeystone
 
 harden: disasm.o cfg.o analysis.o reg-alloc.o test.o
 	g++ $^ $(CXXFLAGS) -o $@

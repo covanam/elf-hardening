@@ -78,20 +78,13 @@ int main(int argc, char *argv[]) {
 	control_flow_graph cfg = get_cfg(lift.instructions);
 	liveness_analysis(cfg);
 
-	basic_block *entry = nullptr;
 	for (auto& bb : cfg) {
 		if (!bb.name().empty()) {
-			entry = &bb;
-			break;
+			std::map<vreg, int> alloc = register_allocate(cfg, bb);
+			cfg.reset();
+			replace_reg(bb, alloc);
 		}
 	}
-
-	std::map<vreg, int> alloc = register_allocate(cfg, *entry);
-
-	control_flow_graph::iterator start = cfg.begin();
-
-	cfg.reset();
-	replace_reg(*start, alloc);
 
 	lift.instructions = cfg_dump(cfg);
 	

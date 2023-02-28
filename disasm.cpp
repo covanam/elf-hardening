@@ -417,6 +417,29 @@ vins::vins(const cs_insn &in) {
 
 	this->regs = extract_registers(operands);
 	get_write_read_registers(in, regs, gen, use);
+
+	switch (in.id) {
+		//#TODO this should be in the assembler
+		case ARM_INS_ADC:
+		case ARM_INS_ADD:
+		case ARM_INS_AND:
+		case ARM_INS_BIC:
+		case ARM_INS_EOR:
+		case ARM_INS_ORR:
+		case ARM_INS_SBC:
+		case ARM_INS_SUB:
+			if (
+				in.detail->arm.op_count == 2 &&
+				in.detail->arm.operands[0].type == ARM_OP_REG &&
+				in.detail->arm.operands[1].type == ARM_OP_REG
+			) {
+				operands = "%0, %0, %1";
+			}
+			break;
+		case ARM_INS_MUL:
+			if (mnemonic == "muls") //#TODO are we sure flags are not used?
+				mnemonic.resize(3);
+	}
 }
 
 vins::vins(uint8_t data, uint64_t addr) {
