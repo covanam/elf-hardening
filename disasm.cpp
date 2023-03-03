@@ -371,17 +371,6 @@ implicit_registers:
 		regs.push_back(vreg(ins_id));
 		write.push_back(regs.size() - 1);
 	}
-
-	if (in.id == ARM_INS_BL) {
-		for (int i = 0; i < 4; ++i) {
-			regs.push_back(vreg(i));
-			read.push_back(regs.size() - 1);
-		}
-		for (int i = 0; i < 2; ++i) {
-			regs.push_back(vreg(i));
-			write.push_back(regs.size() - 1);
-		}
-	}
 }
 
 vins::vins(const cs_insn &in) {
@@ -529,12 +518,14 @@ static bool is_jump(const cs_insn& in, const cs_detail& detail) {
 		}
 	}
 
-	if (in.id == ARM_INS_POP) {
-		for (int i = 0; i < detail.arm.op_count; ++i) {
-			if (detail.arm.operands[i].type == ARM_OP_REG &&
-			    detail.arm.operands[i].reg == ARM_REG_PC) {
-				return true;
-			}
+	for (int i = 0; i < detail.arm.op_count; ++i) {
+		cs_arm_op op = detail.arm.operands[i];
+		if (
+			op.type == ARM_OP_REG &&
+			op.access & CS_AC_WRITE &&
+			op.reg == ARM_REG_PC
+		) {
+			return true;
 		}
 	}
 
@@ -558,16 +549,15 @@ static bool can_fall_through(const cs_insn& in, const cs_detail& detail) {
 	if (in.id == ARM_INS_CBNZ || in.id == ARM_INS_CBZ)
 		return true;
 
-	for (int i = 0; i < detail.groups_count; ++i) {
-		if (detail.groups[i] == CS_GRP_CALL) {
-			return true;
-		}
-	}
-
 	if (is_jump(in, detail))
 		return false;
 
 	return true;
+}
+
+bool vins::is_function_return() const {
+	// #TODO: are we sure this is always true?
+	return is_jump() && target_label.empty() && !is_call();
 }
 
 int vins::size() const {
@@ -904,6 +894,62 @@ static void transform_cbnz_cbz(std::list<vins>& instructions) {
 	}
 }
 
+void lifter::get_function_name() {
+	symbol_section_accessor symbols(reader, sym_sec);
+
+	for (unsigned int i = 1; i < symbols.get_symbols_num(); ++i) {
+		std::string name;
+		Elf64_Addr value;
+		Elf_Xword size;
+		unsigned char bind;
+		unsigned char type;
+		Elf_Half section_index;
+		unsigned char other;
+		symbols.get_symbol(
+			i,
+			name,
+			value,
+			size,
+			bind,
+			type,
+			section_index,
+			other);
+
+		if (text_sec != reader.sections[section_index])
+			continue;
+		
+		if (type != STT_FUNC)
+			continue;
+
+		if (bind != STB_GLOBAL && bind != STB_WEAK)
+			continue;
+
+		functions.insert(name);
+	}
+}
+
+static void add_calling_convention_registers(std::list<vins>& instructions) {
+	for (vins& in : instructions) {
+		if (!in.is_call())
+			continue;
+
+		if (in.target_label.size() && in.target_label[0] != '.') {
+			// we are calling a local function here, and local
+			// functions do not respect calling convention
+			continue;
+		}
+
+		for (int i = 0; i < 4; ++i) {
+			in.regs.push_back(vreg(i));
+			in.use.push_back(in.regs.size() - 1);
+		}
+		for (int i = 0; i < 2; ++i) {
+			in.regs.push_back(vreg(i));
+			in.gen.push_back(in.regs.size() - 1);
+		}
+	}
+}
+
 bool lifter::load(std::string file) {
 	if (!reader.load(file))
 		return false;
@@ -925,9 +971,11 @@ bool lifter::load(std::string file) {
 	if (!text_sec)
 		return true;
 
+	get_function_name();
 	instructions = disassemble(reader);
 	add_labels_from_symbol_table();
 	demote_to_fake_labels(instructions, rel_sec);
+	add_calling_convention_registers(instructions);
 	merge_small_data(instructions);
 	remove_nops(instructions);
 	transform_cbnz_cbz(instructions);

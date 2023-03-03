@@ -53,6 +53,7 @@ public:
 	bool is_jump() const { return _is_jump; };
 	bool is_call() const { return _is_call; };
 	bool can_fall_through() const { return _can_fall_through; };
+	bool is_function_return() const;
 
 	static bool is_fake_label(const std::string &label) {
 		return !label.compare(0, 2, ".F");
@@ -77,9 +78,12 @@ public:
 	void save(std::string file);
 	std::list<vins> instructions;
 
+	std::set<std::string> functions;
+
 private:
 	void add_labels_from_symbol_table();
 	void add_target_labels(); 
+	void get_function_name();
 
 	ELFIO::elfio reader;
 	ELFIO::section *sym_sec;

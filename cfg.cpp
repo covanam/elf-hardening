@@ -10,8 +10,7 @@ std::ostream& operator<<(std::ostream& os, const basic_block& bb) {
 
 	os << "To:\n";
 	for (const auto i : bb.successors)
-		if (i)
-			os << '\t' << i->front().addr << '\n';
+		os << '\t' << i->front().addr << '\n';
 	os << std::dec;
 
 	os << "Content:\n";
@@ -53,11 +52,7 @@ static basic_block& find_bb_with_label(
 }
 
 static void link_basic_blocks(basic_block& pred, basic_block& succ) {
-	if (!pred.successors[0])
-		pred.successors[0] = &succ;
-	else if (!pred.successors[1])
-		pred.successors[1] = &succ;
-	else assert(0);
+	pred.successors.push_back(&succ);
 	succ.predecessors.push_back(&pred);
 }
 
@@ -70,6 +65,34 @@ static void link_next_basic_block(
 		return;
 	
 	link_basic_blocks(*pred, *succ);
+}
+
+static void link_follow_function_call(
+	basic_block& caller,
+	basic_block& callee
+) {
+	if (callee.callers.find(&caller) != callee.callers.end())
+		return;
+	
+	callee.callers.insert(&caller);
+
+	if (callee.back().is_function_return()) {
+		basic_block* return_bb = caller.next;
+		for (auto succ : callee.successors)
+			if (succ == return_bb)
+				return;
+		link_basic_blocks(callee, *return_bb);
+	}
+	else if (callee.back().is_call()) {
+		if (callee.successors.size() && callee.back().target_label[0] != '.')
+			link_follow_function_call(callee, *callee.successors[0]);
+		link_follow_function_call(caller, *callee.next);
+	}
+	else {
+		for (auto succ : callee.successors) {
+			link_follow_function_call(caller, *succ);
+		}
+	}
 }
 
 control_flow_graph get_cfg(std::list<vins>& l) {
@@ -91,6 +114,7 @@ control_flow_graph get_cfg(std::list<vins>& l) {
 
 		if (is_basic_block_end(*i, *next) || is_basic_block_start(*next)) {
 			cfg.push_back(basic_block());
+			cur->next = &cfg.back();
 			cur = &cfg.back();
 		}
 
@@ -100,12 +124,19 @@ control_flow_graph get_cfg(std::list<vins>& l) {
 	for (auto i = cfg.begin(); i != cfg.end(); ++i) {
 		std::string &s = i->back().target_label;
 
-		if (!s.empty() && !vins::is_fake_label(s) &&
-		    i->back().is_jump() && !i->back().is_call())
+		if (!s.empty() && !vins::is_fake_label(s) && i->back().is_jump())
 			link_basic_blocks(*i, find_bb_with_label(cfg, s));
 
-		if (i->back().can_fall_through()) {
+		if (i->back().can_fall_through() ||
+		    i->back().is_call() && i->back().target_label[0] == '.') {
 			link_next_basic_block(i, cfg);
+		}
+	}
+
+	for (auto& bb : cfg) {
+		if (bb.back().is_call() && bb.successors.size() &&
+		    bb.back().target_label[0] != '.') {
+			link_follow_function_call(bb, *bb.successors[0]);
 		}
 	}
 

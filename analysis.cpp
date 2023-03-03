@@ -3,6 +3,7 @@
 #include <set>
 #include <cassert>
 #include "analysis.h"
+#include <sstream>
 
 static void reverse_flow(basic_block& current, std::set<vreg> live_regs) {
 	for (auto i = current.rbegin(); i != current.rend(); ++i) {
@@ -34,7 +35,7 @@ void liveness_analysis(control_flow_graph& cfg) {
 		if (bb->front().is_data())
 			continue;
 
-		if (bb->is_returning())
+		if (bb->is_exit())
 			reverse_flow(*bb, use_at_func_return);
 	}
 }

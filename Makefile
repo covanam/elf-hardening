@@ -18,5 +18,11 @@ reg-alloc.o: reg-alloc.cpp reg-alloc.h analysis.h cfg.h disasm.h
 no_change: disasm.o test_no_change.o
 	g++ $^ $(CXXFLAGS) -o harden
 
+test_cfg: disasm.o test_cfg.cpp cfg.o
+	g++ $^ $(CXXFLAGS) -o harden
+
+test_liveness: disasm.o cfg.o analysis.o test_liveness.cpp
+	g++ $^ $(CXXFLAGS) -o harden
+
 clean:
 	rm *.o harden
