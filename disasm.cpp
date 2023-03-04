@@ -326,6 +326,7 @@ static void get_write_read_registers(
 	for (int i = 0; i < in.detail->arm.op_count; ++i) {
 		cs_arm_op op = in.detail->arm.operands[i];
 		if (op.type == ARM_OP_REG) {
+			assert(op.access != CS_AC_INVALID);
 			if (op.access & CS_AC_READ)
 				read.push_back(idx);
 			if (op.access & CS_AC_WRITE)
