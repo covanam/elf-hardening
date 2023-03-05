@@ -49,19 +49,33 @@ void stack_offset_forward_flow(basic_block& bb, int stack_offset) {
 		for (int i : in.gen) {
 			if (in.regs[i] == 13) {
 				if (in.mnemonic.rfind("add", 0) == 0) {
-					assert(in.use.size() == 1);
+					if (in.use.size() != 1) {
+						std::stringstream ss;
+						ss << in;
+						throw stack_analysis_failure(ss.str());
+					}
 					if (in.regs[in.use[0]] == 13) {
 						stack_offset += in.imm();
 						continue;
 					}
 				} else if (in.mnemonic.rfind("sub", 0) == 0) {
-					assert(in.use.size() == 1);
+					if (in.use.size() != 1) {
+						std::stringstream ss;
+						ss << in;
+						throw stack_analysis_failure(ss.str());
+					}
 					if (in.regs[in.use[0]] == 13) {
 						stack_offset -= in.imm();
 						continue;
 					}
+				} else if (in.mnemonic.rfind("ldr", 0) == 0) {
+					assert(in.imm());
+					stack_offset += in.imm();
+					continue;
 				}
-				assert(0);
+				std::stringstream ss;
+				ss << in;
+				throw stack_analysis_failure(ss.str());
 			}
 		}
 		if (in.mnemonic.rfind("push", 0) == 0) {
@@ -74,18 +88,14 @@ void stack_offset_forward_flow(basic_block& bb, int stack_offset) {
 	}
 
 	for (auto succ : bb.successors) {
-		if (succ) {
-			stack_offset_forward_flow(*succ, stack_offset);
-		}
+		stack_offset_forward_flow(*succ, stack_offset);
+	}
+	if (bb.is_exit()) {
+		assert(stack_offset == 0);
 	}
 }
 
-void stack_offset_analysis(control_flow_graph &cfg) {
-	cfg.reset();
-	for (auto& bb : cfg) {
-		if (bb.name().empty())
-			continue;
-
-		stack_offset_forward_flow(bb, 0);
-	}
+void stack_offset_analysis(basic_block& entry) {
+	assert(entry.is_entry());
+	stack_offset_forward_flow(entry, 0);
 }

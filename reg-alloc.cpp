@@ -39,8 +39,11 @@ static void rig_forward_flow(
 	bb.visited = true;
 
 	for (basic_block* succ : bb.successors) {
-		if (succ)
-			rig_forward_flow(*succ, rig);
+		rig_forward_flow(*succ, rig);
+	}
+
+	for (basic_block* pred : bb.predecessors) {
+		rig_forward_flow(*pred, rig);
 	}
 }
 
@@ -93,8 +96,7 @@ static int spill_forward_flow(basic_block& bb, vreg reg) {
 	bb.visited = true;
 
 	for (basic_block* succ : bb.successors) {
-		if (succ)
-			cost += spill_forward_flow(*succ, reg);
+		cost += spill_forward_flow(*succ, reg);
 	}
 
 	return cost;
@@ -191,7 +193,7 @@ std::map<vreg, int> register_allocate(
 			}
 
 			assert(available.begin() != available.end());
-			allocation.insert({r->first, *available.begin()});
+			allocation.insert({r->first, *--available.end()});
 		}
 		else {
 			allocation.insert({r->first, 14});
