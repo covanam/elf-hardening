@@ -52,6 +52,7 @@ public:
 	bool is_data() const;
 	bool is_jump() const { return _is_jump; };
 	bool is_call() const { return _is_call; };
+	bool is_local_call() const;
 	bool can_fall_through() const { return _can_fall_through; };
 	bool is_function_return() const;
 

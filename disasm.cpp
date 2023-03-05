@@ -566,6 +566,10 @@ int vins::size() const {
 	return _size;
 }
 
+bool vins::is_local_call() const {
+	return is_call() && !target_label.empty() && target_label[0] != '.';
+}
+
 std::ostream& operator<<(std::ostream& os, vreg r) {
 	switch(r.num) {
 		case 9:

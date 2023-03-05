@@ -84,9 +84,7 @@ static void link_follow_function_call(
 		link_basic_blocks(callee, *return_bb);
 	}
 	else if (callee.back().is_call()) {
-		if (callee.successors.size() &&
-		    callee.back().target_label.length() &&
-		    callee.back().target_label[0] != '.')
+		if (callee.back().is_local_call())
 			link_follow_function_call(callee, *callee.successors[0]);
 		link_follow_function_call(caller, *callee.next);
 	}
@@ -130,15 +128,13 @@ control_flow_graph get_cfg(std::list<vins>& l) {
 			link_basic_blocks(*i, find_bb_with_label(cfg, s));
 
 		if (i->back().can_fall_through() ||
-		    i->back().is_call() && i->back().target_label.empty() ||
-		    i->back().is_call() && i->back().target_label[0] == '.') {
+		    i->back().is_call() && !i->back().is_local_call()) {
 			link_next_basic_block(i, cfg);
 		}
 	}
 
 	for (auto& bb : cfg) {
-		if (bb.back().is_call() && !bb.back().target_label.empty() &&
-		    bb.back().target_label[0] != '.') {
+		if (bb.back().is_local_call()) {
 			link_follow_function_call(bb, *bb.successors[0]);
 		}
 	}
