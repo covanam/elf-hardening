@@ -40,6 +40,44 @@ void liveness_analysis(control_flow_graph& cfg) {
 	}
 }
 
+static int get_stack_change(const vins& in) {
+	for (int i : in.gen) {
+		if (in.regs[i] == 13) {
+			if (in.mnemonic.rfind("add", 0) == 0) {
+				if (in.use.size() != 1) {
+					std::stringstream ss;
+					ss << in;
+					throw stack_analysis_failure(ss.str());
+				}
+				if (in.regs[in.use[0]] == 13) {
+					return in.imm();
+				}
+			} else if (in.mnemonic.rfind("sub", 0) == 0) {
+				if (in.use.size() != 1) {
+					std::stringstream ss;
+					ss << in;
+					throw stack_analysis_failure(ss.str());
+				}
+				if (in.regs[in.use[0]] == 13) {
+					return -in.imm();
+				}
+			} else if (in.mnemonic.rfind("ldr", 0) == 0) {
+				assert(in.imm());
+				return in.imm();
+			}
+			std::stringstream ss;
+			ss << in;
+			throw stack_analysis_failure(ss.str());
+		}
+	}
+	if (in.mnemonic.rfind("push", 0) == 0) {
+		return -in.regs.size() * 4;
+	} else if (in.mnemonic.rfind("pop", 0) == 0) {
+		return in.regs.size() * 4;
+	}
+	return 0;
+}
+
 void stack_offset_forward_flow(basic_block& bb, int stack_offset) {
 	if (bb.visited) {
 		assert(bb.front().stack_offset == stack_offset);
@@ -48,45 +86,7 @@ void stack_offset_forward_flow(basic_block& bb, int stack_offset) {
 	bb.visited = true;
 	for (auto& in : bb) {
 		in.stack_offset = stack_offset;
-		for (int i : in.gen) {
-			if (in.regs[i] == 13) {
-				if (in.mnemonic.rfind("add", 0) == 0) {
-					if (in.use.size() != 1) {
-						std::stringstream ss;
-						ss << in;
-						throw stack_analysis_failure(ss.str());
-					}
-					if (in.regs[in.use[0]] == 13) {
-						stack_offset += in.imm();
-						continue;
-					}
-				} else if (in.mnemonic.rfind("sub", 0) == 0) {
-					if (in.use.size() != 1) {
-						std::stringstream ss;
-						ss << in;
-						throw stack_analysis_failure(ss.str());
-					}
-					if (in.regs[in.use[0]] == 13) {
-						stack_offset -= in.imm();
-						continue;
-					}
-				} else if (in.mnemonic.rfind("ldr", 0) == 0) {
-					assert(in.imm());
-					stack_offset += in.imm();
-					continue;
-				}
-				std::stringstream ss;
-				ss << in;
-				throw stack_analysis_failure(ss.str());
-			}
-		}
-		if (in.mnemonic.rfind("push", 0) == 0) {
-			stack_offset -= in.regs.size() * 4;
-			continue;
-		} else if (in.mnemonic.rfind("pop", 0) == 0) {
-			stack_offset += in.regs.size() * 4;
-			continue;
-		}
+		stack_offset += get_stack_change(in);
 	}
 
 	if (bb.back().is_call()) {
