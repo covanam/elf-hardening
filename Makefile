@@ -27,5 +27,8 @@ test_liveness: disasm.o cfg.o analysis.o test_liveness.cpp
 test_alloc: disasm.o cfg.o analysis.o reg-alloc.o test_alloc.cpp
 	g++ $^ $(CXXFLAGS) -o harden
 
+test_stack: disasm.o cfg.o analysis.o test_stack.cpp
+	g++ $^ $(CXXFLAGS) -o harden
+
 clean:
 	rm *.o harden

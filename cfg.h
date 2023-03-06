@@ -16,6 +16,7 @@ public:
 	basic_block* next;
 
 	basic_block() {
+		next = nullptr;
 		visited = false;
 	}
 

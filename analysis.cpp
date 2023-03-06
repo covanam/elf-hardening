@@ -41,8 +41,10 @@ void liveness_analysis(control_flow_graph& cfg) {
 }
 
 void stack_offset_forward_flow(basic_block& bb, int stack_offset) {
-	if (bb.visited)
+	if (bb.visited) {
+		assert(bb.front().stack_offset == stack_offset);
 		return;
+	}
 	bb.visited = true;
 	for (auto& in : bb) {
 		in.stack_offset = stack_offset;
@@ -87,11 +89,19 @@ void stack_offset_forward_flow(basic_block& bb, int stack_offset) {
 		}
 	}
 
-	for (auto succ : bb.successors) {
-		stack_offset_forward_flow(*succ, stack_offset);
+	if (bb.back().is_call()) {
+		/* don't follow function call for this analysis */
+		if (bb.next) {
+			stack_offset_forward_flow(*bb.next, stack_offset);
+		}
 	}
-	if (bb.is_exit()) {
+	else if (bb.back().is_function_return()) {
 		assert(stack_offset == 0);
+	}
+	else {
+		for (auto succ : bb.successors) {
+			stack_offset_forward_flow(*succ, stack_offset);
+		}
 	}
 }
 
