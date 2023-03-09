@@ -625,6 +625,14 @@ bool vins::is_local_call() const {
 	return is_call() && !target_label.empty() && target_label[0] != '.';
 }
 
+void vins::transfer_label(vins& in) {
+	in.label = std::move(this->label);
+	label = std::string();
+
+	in.sym = this->sym;
+	this->sym = -1;
+}
+
 std::ostream& operator<<(std::ostream& os, vreg r) {
 	switch(r.num) {
 		case 9:
@@ -733,7 +741,6 @@ static void update_addr(
 
 		if (vi->is_pseudo()) {
 			size = 0;
-			continue;
 		} else if (!vi->is_data()) {
 			capstone disasm(&bin[addr], 0, addr);
 			size = disasm[0].size;
@@ -836,7 +843,8 @@ void lifter::save(std::string file) {
 	int align = 1;
 	for (const vins &b : this->instructions) {
 		if (b.is_pseudo()) {
-			assembly << b.label << ':';
+			if (false == b.label.empty())
+				assembly << b.label << ": ";
 			continue;
 		}
 
@@ -928,10 +936,7 @@ static void transform_cbnz_cbz(std::list<vins>& instructions) {
 		if (it->mnemonic == "cbnz") {
 			vins& cbnz = *it;
 			vins temp = vins::ins_cmp(cbnz.regs[0], 0);
-			temp.addr = cbnz.addr;
-			temp.label = cbnz.label;
-			temp.sym = cbnz.sym;
-			temp.rel = cbnz.rel;
+			it->transfer_label(temp);
 			instructions.insert(it, std::move(temp));
 			temp = vins::ins_b("ne", cbnz.target_label.c_str());
 			instructions.insert(it, std::move(temp));
@@ -940,10 +945,7 @@ static void transform_cbnz_cbz(std::list<vins>& instructions) {
 		else if (it->mnemonic == "cbz") {
 			vins& cbnz = *it;
 			vins temp = vins::ins_cmp(cbnz.regs[0], 0);
-			temp.addr = cbnz.addr;
-			temp.label = cbnz.label;
-			temp.sym = cbnz.sym;
-			temp.rel = cbnz.rel;
+			it->transfer_label(temp);
 			instructions.insert(it, std::move(temp));
 			temp = vins::ins_b("eq", cbnz.target_label.c_str());
 			instructions.insert(it, std::move(temp));
@@ -991,16 +993,26 @@ static void add_calling_convention_instructions(
 	std::list<vins>& instructions,
 	const std::set<std::string> functions
 ) {
-	for (auto it = instructions.begin(); it != instructions.end(); ++it) {
+	for (auto it = instructions.begin(); it != instructions.end();) {
 		vins& in = *it;
+		auto next = std::next(it);
 
-		if (in.is_call() && !in.is_local_call()) {
-			instructions.insert(it, vins::function_call());
-		} else if (in.is_function_return()) {
-			instructions.insert(std::next(it), vins::function_exit());
-		} else if (functions.find(in.label) != functions.end()) {
-			instructions.insert(std::next(it), vins::function_entry());
+		if (functions.find(in.label) != functions.end()) {
+			vins tmp = vins::function_entry();
+			it->transfer_label(tmp);
+			instructions.insert(it, std::move(tmp));
 		}
+		if (in.is_call() && !in.is_local_call()) {
+			vins tmp = vins::function_call();
+			it->transfer_label(tmp);
+			instructions.insert(it, std::move(tmp));
+		}
+		if (in.is_function_return()) {
+			vins tmp = vins::function_exit();
+			instructions.insert(std::next(it), std::move(tmp));
+		}
+
+		it = next;
 	}
 }
 
@@ -1029,8 +1041,7 @@ bool lifter::load(std::string file) {
 	instructions = disassemble(reader);
 	add_labels_from_symbol_table();
 	remove_fake_labels(instructions, rel_sec);
-	//add_reloc_symbols(instructions, rel_sec);
-	//add_calling_convention_instructions(instructions, this->functions);
+	add_calling_convention_instructions(instructions, this->functions);
 	merge_small_data(instructions);
 	remove_nops(instructions);
 	transform_cbnz_cbz(instructions);

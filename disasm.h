@@ -53,6 +53,8 @@ public:
 	static vins function_call();
 	static vins function_exit();
 
+	void transfer_label(vins& in);
+
 	int size() const;
 	int64_t imm() const { return _imm; }
 
