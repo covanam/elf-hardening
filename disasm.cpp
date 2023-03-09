@@ -505,6 +505,61 @@ vins vins::ins_mov(vreg r, int imm) {
 	return in;
 }
 
+bool vins::is_pseudo() const {
+	return this->mnemonic == "pseudo";
+}
+
+vins vins::function_entry() {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+	in.mnemonic = "pseudo";
+	in.operands = "func_entry";
+
+	// #TODO: can we remove r12 (ip)?
+	in.regs = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+	in.gen = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+
+	in._is_call = false;
+	in._is_jump = false;
+	in._can_fall_through = true;
+	in._size = 0;
+	return in;
+}
+
+vins vins::function_call() {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+	in.mnemonic = "pseudo";
+	in.operands = "func_call";
+
+	in.regs = {0, 1, 2, 3};
+	in.gen = {0, 1, 2, 3};
+	in.use = {0, 1, 2, 3};
+
+	in._is_call = false;
+	in._is_jump = false;
+	in._can_fall_through = true;
+	in._size = 0;
+	return in;
+}
+
+vins vins::function_exit() {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+	in.mnemonic = "pseudo";
+	in.operands = "func_exit";
+
+	// #TODO: can we remove r12 (ip)?
+	in.regs = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+	in.use = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+
+	in._is_call = false;
+	in._is_jump = false;
+	in._can_fall_through = true;
+	in._size = 0;
+	return in;
+}
+
 bool vins::is_data() const {
 	return
 		mnemonic == ".word" ||
@@ -596,6 +651,8 @@ std::ostream& operator<<(std::ostream& os, vreg r) {
 std::ostream& operator<<(std::ostream& os, const vins &b) {
 	if (b.label.length()) {
 		os << b.label << ": ";
+	} else if (b.rel >= 0) {
+		os << ".reloc" << b.addr << ": "; // b.addr should be unique
 	}
 	os << b.mnemonic << ' ';
 	for (int i = 0; i < b.operands.length();) {
@@ -603,7 +660,14 @@ std::ostream& operator<<(std::ostream& os, const vins &b) {
 		if (c == '%') {
 			++i;
 			if (b.operands[i] == 'm') {
-				os << b.target_label;
+				if (b.rel >= 0) {
+					if (b.label.empty())
+						os << ".reloc" << b.addr;
+					else
+						os << b.label;
+				} else {
+					os << b.target_label;
+				}
 				++i;
 			} else if (b.operands[i] == 'i') {
 				os << b._imm;
@@ -630,59 +694,47 @@ struct addr_update {
 	uint64_t new_addr;
 };
 
-static void update_symbol_table(section *s, const std::vector<addr_update>& remap, int txt) {
-	Elf32_Sym *symtab = (Elf32_Sym *)s->get_data();
-	std::vector<int> addr_delta(s->get_size() / s->get_entry_size(), 0);
+static void update_symbol_table(section *s, std::list<vins>& ins) {
+	Elf32_Sym* sym = (Elf32_Sym*)s->get_data();
 
-	for (addr_update up : remap) {
-		for (int i = 0; i < s->get_size() / s->get_entry_size(); ++i) {
-			if (symtab[i].st_shndx != txt)
-				continue;
+	for (vins& in : ins) {
+		if (in.sym >= 0) {
+			sym[in.sym].st_value = in.addr;
 
-			uint64_t rel_addr = symtab[i].st_value;
-			if (ELF_ST_TYPE(symtab[i].st_info) == STT_FUNC)
-				rel_addr &= ~((uint64_t)1);
-
-			if (rel_addr == up.old_addr) {
-				addr_delta[i] = up.new_addr - up.old_addr;
-			}
+			if (ELF_ST_TYPE(sym[in.sym].st_info) == STT_FUNC)
+				sym[in.sym].st_value |= 1;
 		}
 	}
-
-	for (int i = 0; i < s->get_size() / s->get_entry_size(); ++i)
-		symtab[i].st_value += addr_delta[i];
 }
 
-static void update_relocation_table(section *s, const std::vector<addr_update>& remap) {
+static void update_relocation_table(section *s, std::list<vins>& ins, 
+	const elfio& elf_file
+) {
 	if (!s)
 		return;
 
-	Elf32_Rel *reltab = (Elf32_Rel *)s->get_data();
-	std::vector<int> addr_delta(s->get_size() / s->get_entry_size(), 0);
+	Elf32_Rel* rel = (Elf32_Rel*)s->get_data();
 
-	for (addr_update up : remap) {
-		for (int i = 0; i < s->get_size() / s->get_entry_size(); ++i) {
-			if (reltab[i].r_offset == up.old_addr) {
-				addr_delta[i] = up.new_addr - up.old_addr;
-			}
+	for (vins& in : ins) {
+		if (in.rel >= 0) {
+			rel[in.rel].r_offset = in.addr;
 		}
 	}
-
-	for (int i = 0; i < s->get_size() / s->get_entry_size(); ++i)
-		reltab[i].r_offset += addr_delta[i];
 }
 
-static std::vector<addr_update> get_addr_changes(
-	const std::list<vins>& inl,
+static void update_addr(
+	std::list<vins>& inl,
 	const std::vector<uint8_t>& bin
 ) {
-	std::vector<addr_update> addr_update_map(inl.size());
-
 	uint64_t addr = 0;
 	auto vi = inl.begin();
 	for (int i = 0; i < inl.size(); ++i) {
 		unsigned size;
-		if (!vi->is_data()) {
+
+		if (vi->is_pseudo()) {
+			size = 0;
+			continue;
+		} else if (!vi->is_data()) {
 			capstone disasm(&bin[addr], 0, addr);
 			size = disasm[0].size;
 		} else {
@@ -700,14 +752,11 @@ static std::vector<addr_update> get_addr_changes(
 			else assert(0);
 		}
 
-		addr_update_map[i].old_addr = vi->addr;
-		addr_update_map[i].new_addr = addr;
+		vi->addr = addr;
 
 		++vi;
 		addr += size;
 	}
-
-	return addr_update_map;
 }
 
 static bool four_bytes_to_word(std::list<vins> &l, std::list<vins>::iterator i) {
@@ -786,6 +835,11 @@ void lifter::save(std::string file) {
 
 	int align = 1;
 	for (const vins &b : this->instructions) {
+		if (b.is_pseudo()) {
+			assembly << b.label << ':';
+			continue;
+		}
+
 		if (b.mnemonic == ".word") {
 			if (align % 4)
 				assembly << ".align 2\n";
@@ -809,43 +863,44 @@ void lifter::save(std::string file) {
 	std::vector<uint8_t> bin = assemble(assembly.str());
 	text_sec->set_data((const char *)&bin[0], bin.size());
 
-	std::vector<addr_update> addr_update_map = get_addr_changes(instructions, bin);
+	update_addr(instructions, bin);
 
 	for (int i = 0; i < reader.sections.size(); ++i) {
 		if (reader.sections[i]->get_name() == ".text") {
-			update_symbol_table(sym_sec, addr_update_map, i);
+			update_symbol_table(sym_sec, instructions);
 			break;
 		}
 	}
 
-	update_relocation_table(rel_sec, addr_update_map);
+	update_relocation_table(rel_sec, instructions, reader);
 
 	if (!reader.save(file)) {
 		throw std::runtime_error("Failed to write to " + file);
 	}
 }
 
-static bool is_relocatable(uint64_t addr, const section *rel) {
+static int is_relocatable(uint64_t addr, const section *rel) {
 	if (!rel)
-		return false;
+		return -1;
 
 	Elf32_Rel *reltab = (Elf32_Rel *)rel->get_data();
 
 	for (int i = 0; i < rel->get_size() / rel->get_entry_size(); ++i) {
 		if (reltab[i].r_offset == addr) {
-			return true;
+			return i;
 		}
 	}
 
-	return false;
+	return -1;
 }
 
-static void demote_to_fake_labels(
+static void remove_fake_labels(
 	std::list<vins>& instructions,
-	const ELFIO::section *rel
+	const ELFIO::section *rel_sec
 ) {
 	for (vins& in : instructions) {
-		if (!is_relocatable(in.addr, rel))
+		in.rel = is_relocatable(in.addr, rel_sec);
+		if (in.rel < 0)
 			continue;
 
 		if (in.is_data())
@@ -855,20 +910,15 @@ static void demote_to_fake_labels(
 		for (vins& inn : instructions) {
 			if (&in == &inn)
 				continue;
-			if (inn.target_label == in.label) {
+			if (inn.is_jump() && inn.target_label == in.label) {
 				others_jump_here = true;
 				break;
 			}
 		}
 
-		if (others_jump_here)
-			continue;
-
-		if(in.target_label.compare(0, 2, ".L"))
-			continue;
-
-		in.label[1] = 'F';
-		in.target_label[1] = 'F';
+		in.target_label.clear();
+		if (!others_jump_here)
+			in.label.clear();
 	}
 }
 
@@ -880,6 +930,8 @@ static void transform_cbnz_cbz(std::list<vins>& instructions) {
 			vins temp = vins::ins_cmp(cbnz.regs[0], 0);
 			temp.addr = cbnz.addr;
 			temp.label = cbnz.label;
+			temp.sym = cbnz.sym;
+			temp.rel = cbnz.rel;
 			instructions.insert(it, std::move(temp));
 			temp = vins::ins_b("ne", cbnz.target_label.c_str());
 			instructions.insert(it, std::move(temp));
@@ -890,6 +942,8 @@ static void transform_cbnz_cbz(std::list<vins>& instructions) {
 			vins temp = vins::ins_cmp(cbnz.regs[0], 0);
 			temp.addr = cbnz.addr;
 			temp.label = cbnz.label;
+			temp.sym = cbnz.sym;
+			temp.rel = cbnz.rel;
 			instructions.insert(it, std::move(temp));
 			temp = vins::ins_b("eq", cbnz.target_label.c_str());
 			instructions.insert(it, std::move(temp));
@@ -933,24 +987,19 @@ void lifter::get_function_name() {
 	}
 }
 
-static void add_calling_convention_registers(std::list<vins>& instructions) {
-	for (vins& in : instructions) {
-		if (!in.is_call())
-			continue;
+static void add_calling_convention_instructions(
+	std::list<vins>& instructions,
+	const std::set<std::string> functions
+) {
+	for (auto it = instructions.begin(); it != instructions.end(); ++it) {
+		vins& in = *it;
 
-		if (in.target_label.size() && in.target_label[0] != '.') {
-			// we are calling a local function here, and local
-			// functions do not respect calling convention
-			continue;
-		}
-
-		for (int i = 0; i < 4; ++i) {
-			in.regs.push_back(vreg(i));
-			in.use.push_back(in.regs.size() - 1);
-		}
-		for (int i = 0; i < 2; ++i) {
-			in.regs.push_back(vreg(i));
-			in.gen.push_back(in.regs.size() - 1);
+		if (in.is_call() && !in.is_local_call()) {
+			instructions.insert(it, vins::function_call());
+		} else if (in.is_function_return()) {
+			instructions.insert(std::next(it), vins::function_exit());
+		} else if (functions.find(in.label) != functions.end()) {
+			instructions.insert(std::next(it), vins::function_entry());
 		}
 	}
 }
@@ -979,8 +1028,9 @@ bool lifter::load(std::string file) {
 	get_function_name();
 	instructions = disassemble(reader);
 	add_labels_from_symbol_table();
-	demote_to_fake_labels(instructions, rel_sec);
-	add_calling_convention_registers(instructions);
+	remove_fake_labels(instructions, rel_sec);
+	//add_reloc_symbols(instructions, rel_sec);
+	//add_calling_convention_instructions(instructions, this->functions);
 	merge_small_data(instructions);
 	remove_nops(instructions);
 	transform_cbnz_cbz(instructions);
@@ -1027,7 +1077,7 @@ void lifter::add_labels_from_symbol_table() {
 					}
 				}
 				in.label = name;
-				break;
+				in.sym = i;
 			}
 		}
 	}

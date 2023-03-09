@@ -38,6 +38,9 @@ public:
 	std::string target_label;
 	std::string label;
 
+	int rel = -1;
+	int sym = -1;
+
 	vins() = default;
 	vins(const cs_insn &in);
 	vins(uint8_t data, uint64_t addr);
@@ -45,6 +48,10 @@ public:
 	static vins ins_b(const char *condition, const char *label);
 	static vins ins_add(vreg d, vreg r1, vreg r2);
 	static vins ins_mov(vreg r, int imm);
+
+	static vins function_entry();
+	static vins function_call();
+	static vins function_exit();
 
 	int size() const;
 	int64_t imm() const { return _imm; }
@@ -59,6 +66,8 @@ public:
 	static bool is_fake_label(const std::string &label) {
 		return !label.compare(0, 2, ".F");
 	}
+
+	bool is_pseudo() const;
 
 	std::vector<vreg> regs;
 	std::vector<unsigned> use, gen;
