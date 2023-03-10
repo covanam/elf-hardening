@@ -50,7 +50,6 @@ public:
 	static vins ins_mov(vreg r, int imm);
 
 	static vins function_entry();
-	static vins function_call();
 	static vins function_exit();
 
 	void transfer_label(vins& in);
@@ -63,11 +62,8 @@ public:
 	bool is_call() const { return _is_call; };
 	bool is_local_call() const;
 	bool can_fall_through() const { return _can_fall_through; };
-	bool is_function_return() const;
 
-	static bool is_fake_label(const std::string &label) {
-		return !label.compare(0, 2, ".F");
-	}
+	bool is_function_return() const;
 
 	bool is_pseudo() const;
 

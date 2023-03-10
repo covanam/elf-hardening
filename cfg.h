@@ -18,12 +18,16 @@ public:
 	basic_block() {
 		next = nullptr;
 		visited = false;
+		forward_visited = false;
+		backward_visited = false;
 	}
 
 	bool is_exit() const { return successors.empty(); }
 	bool is_entry() const { return this->front().label[0] != '.'; }
 
 	bool visited; // for analysis
+	bool forward_visited;
+	bool backward_visited;
 
 	friend std::ostream& operator<<(std::ostream& os, const basic_block& bb);
 };
@@ -33,6 +37,8 @@ public:
 	void reset() {
 		for (auto& bb : *this) {
 			bb.visited = false;
+			bb.forward_visited = false;
+			bb.backward_visited = false;
 		}
 	}
 
@@ -41,7 +47,7 @@ private:
 	std::set<std::string> _entries;
 };
 
-control_flow_graph get_cfg(std::list<vins>& l);
+control_flow_graph get_cfg(lifter& lift);
 std::list<vins> cfg_dump(control_flow_graph& cfg);
 
 #endif //ANALYSIS_H

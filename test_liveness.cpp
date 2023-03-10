@@ -23,7 +23,7 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	control_flow_graph cfg = get_cfg(lift.instructions);
+	control_flow_graph cfg = get_cfg(lift);
 	liveness_analysis(cfg);
 
 	for (auto cfgi = cfg.begin(); cfgi != cfg.end(); ++cfgi) {
@@ -32,7 +32,11 @@ int main(int argc, char *argv[]) {
 			continue;
 		int skip = 0;
 
-		for (auto it = ++bb.begin(); it != bb.end(); ++it) {
+		auto it = bb.begin();
+		while(it->is_pseudo()) { ++it; }
+		for (++it; it != bb.end(); ++it) {
+			if (it->is_pseudo())
+				continue;
 			if (!it->mnemonic.compare(0, 2, "it", 2)) {
 				skip = 4;
 				continue;

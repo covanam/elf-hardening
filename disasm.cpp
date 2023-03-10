@@ -526,23 +526,6 @@ vins vins::function_entry() {
 	return in;
 }
 
-vins vins::function_call() {
-	vins in;
-	in.addr = std::numeric_limits<uint64_t>::max();
-	in.mnemonic = "pseudo";
-	in.operands = "func_call";
-
-	in.regs = {0, 1, 2, 3};
-	in.gen = {0, 1, 2, 3};
-	in.use = {0, 1, 2, 3};
-
-	in._is_call = false;
-	in._is_jump = false;
-	in._can_fall_through = true;
-	in._size = 0;
-	return in;
-}
-
 vins vins::function_exit() {
 	vins in;
 	in.addr = std::numeric_limits<uint64_t>::max();
@@ -989,30 +972,13 @@ void lifter::get_function_name() {
 	}
 }
 
-static void add_calling_convention_instructions(
-	std::list<vins>& instructions,
-	const std::set<std::string> functions
-) {
-	for (auto it = instructions.begin(); it != instructions.end();) {
-		vins& in = *it;
-		auto next = std::next(it);
-
-		if (functions.find(in.label) != functions.end()) {
-			vins tmp = vins::function_entry();
-			it->transfer_label(tmp);
-			instructions.insert(it, std::move(tmp));
-		}
+static void add_call_registers(std::list<vins>& instructions) {
+	for (auto& in : instructions) {
 		if (in.is_call() && !in.is_local_call()) {
-			vins tmp = vins::function_call();
-			it->transfer_label(tmp);
-			instructions.insert(it, std::move(tmp));
+			in.regs = {0, 1, 2, 3};
+			in.use = {0, 1, 2, 3};
+			in.gen = {0, 1, 2, 3};
 		}
-		if (in.is_function_return()) {
-			vins tmp = vins::function_exit();
-			instructions.insert(std::next(it), std::move(tmp));
-		}
-
-		it = next;
 	}
 }
 
@@ -1041,7 +1007,7 @@ bool lifter::load(std::string file) {
 	instructions = disassemble(reader);
 	add_labels_from_symbol_table();
 	remove_fake_labels(instructions, rel_sec);
-	add_calling_convention_instructions(instructions, this->functions);
+	add_call_registers(instructions);
 	merge_small_data(instructions);
 	remove_nops(instructions);
 	transform_cbnz_cbz(instructions);

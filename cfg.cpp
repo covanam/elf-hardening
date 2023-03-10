@@ -35,7 +35,7 @@ static bool is_basic_block_end(const vins& v, const vins& next) {
 static bool is_basic_block_start(const vins& v) {
 	if (v.is_data())
 		return false;
-	return !v.label.empty() && !vins::is_fake_label(v.label);
+	return !v.label.empty();
 }
 
 static basic_block& find_bb_with_label(
@@ -95,8 +95,11 @@ static void link_follow_function_call(
 	}
 }
 
-control_flow_graph get_cfg(std::list<vins>& l) {
+control_flow_graph get_cfg(lifter& lift) {
 	control_flow_graph cfg;
+
+	std::list<vins>& l = lift.instructions;
+	std::set<std::string>& functions = lift.functions;
 
 	if (l.empty())
 		return cfg;
@@ -124,7 +127,7 @@ control_flow_graph get_cfg(std::list<vins>& l) {
 	for (auto i = cfg.begin(); i != cfg.end(); ++i) {
 		std::string &s = i->back().target_label;
 
-		if (!s.empty() && !vins::is_fake_label(s) && i->back().is_jump())
+		if (!s.empty() && i->back().is_jump())
 			link_basic_blocks(*i, find_bb_with_label(cfg, s));
 
 		if (i->back().can_fall_through() ||
@@ -136,6 +139,26 @@ control_flow_graph get_cfg(std::list<vins>& l) {
 	for (auto& bb : cfg) {
 		if (bb.back().is_local_call()) {
 			link_follow_function_call(bb, *bb.successors[0]);
+		}
+	}
+
+	/* calling convention */
+	for (auto& bb : cfg) {
+		for (auto it = bb.begin(); it != bb.end();) {
+			vins& in = *it;
+			auto next = std::next(it);
+
+			if (functions.find(in.label) != functions.end()) {
+				vins tmp = vins::function_entry();
+				it->transfer_label(tmp);
+				bb.insert(it, std::move(tmp));
+			}
+			if (in.is_function_return() && bb.successors.empty()) {
+				vins tmp = vins::function_exit();
+				bb.insert(std::next(it), std::move(tmp));
+			}
+
+			it = next;
 		}
 	}
 

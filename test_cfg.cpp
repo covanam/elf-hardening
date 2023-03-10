@@ -21,7 +21,7 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	control_flow_graph cfg = get_cfg(lift.instructions);
+	control_flow_graph cfg = get_cfg(lift);
 
         for (auto& bb : cfg) {
                 std::cout << bb;
