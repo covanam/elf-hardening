@@ -12,6 +12,7 @@
 #include <cassert>
 #include <cctype>
 #include <map>
+#include <numeric>
 
 using namespace ELFIO;
 
@@ -433,6 +434,28 @@ vins::vins(const cs_insn &in) {
 			if (mnemonic == "muls") //#TODO are we sure flags are not used?
 				mnemonic.resize(3);
 	}
+
+	switch (in.detail->arm.cc) {
+		case ARM_CC_EQ: cond = "eq"; break;
+		case ARM_CC_NE: cond = "ne"; break;
+		case ARM_CC_HS: cond = "hs"; break;
+		case ARM_CC_LO: cond = "lo"; break;
+		case ARM_CC_MI: cond = "mi"; break;
+		case ARM_CC_PL: cond = "pl"; break;
+		case ARM_CC_VS: cond = "vs"; break;
+		case ARM_CC_VC: cond = "vc"; break;
+		case ARM_CC_HI: cond = "hi"; break;
+		case ARM_CC_LS: cond = "ls"; break;
+		case ARM_CC_GE: cond = "ge"; break;
+		case ARM_CC_LT: cond = "lt"; break;
+		case ARM_CC_GT: cond = "gt"; break;
+		case ARM_CC_LE: cond = "le"; break;
+		case ARM_CC_AL: break;
+		default:
+			std::cerr << "Instruction " << in.mnemonic << ' ' << in.op_str;
+			std::cerr << " has invalid condition: " << in.detail->arm.cc << '\n';
+			assert(0);
+	}
 }
 
 vins::vins(uint8_t data, uint64_t addr) {
@@ -481,10 +504,42 @@ vins vins::ins_add(vreg d, vreg r1, vreg r2) {
 	in.operands = "%0, %1, %2";
 	in._is_call = false;
 	in._is_jump = false;
-	in._can_fall_through = false;
+	in._can_fall_through = true;
 	in._size = 0;
 	in.regs = {d, r1, r2};
 	in.use = {1, 2};
+	in.gen = {0};
+
+	return in;
+}
+
+vins vins::ins_add(vreg d, vreg r, int imm) {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+	in.mnemonic = "add";
+	in.operands = "%0, %1, #" + std::to_string(imm);
+	in._is_call = false;
+	in._is_jump = false;
+	in._can_fall_through = true;
+	in._size = 0;
+	in.regs = {d, r};
+	in.use = {1};
+	in.gen = {0};
+
+	return in;
+}
+
+vins vins::ins_sub(vreg d, vreg r, int imm) {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+	in.mnemonic = "sub";
+	in.operands = "%0, %1, #" + std::to_string(imm);
+	in._is_call = false;
+	in._is_jump = false;
+	in._can_fall_through = true;
+	in._size = 0;
+	in.regs = {d, r};
+	in.use = {1};
 	in.gen = {0};
 
 	return in;
@@ -497,13 +552,124 @@ vins vins::ins_mov(vreg r, int imm) {
 	in.operands = "%0, #" + std::to_string(imm);
 	in._is_call = false;
 	in._is_jump = false;
-	in._can_fall_through = false;
+	in._can_fall_through = true;
 	in._size = 0;
 	in.regs = {r};
 	in.gen = {0};
 
 	return in;
 }
+
+vins vins::ins_str(vreg data, vreg addr, int offset) {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+	in.mnemonic = "str";
+	in.operands = "%0, [%1, #" + std::to_string(offset) + "]";
+	in._is_call = false;
+	in._is_jump = false;
+	in._can_fall_through = true;
+	in._size = 0;
+	in.regs = {data, addr};
+	in.use = {0, 1};
+
+	return in;
+}
+
+vins vins::ins_ldr(vreg data, vreg addr, int offset) {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+	in.mnemonic = "ldr";
+	in.operands = "%0, [%1, #" + std::to_string(offset) + "]";
+	in._is_call = false;
+	in._is_jump = false;
+	in._can_fall_through = true;
+	in._size = 0;
+	in.regs = {data, addr};
+	in.use = {1};
+	in.gen = {0};
+
+	return in;
+}
+
+vins vins::ins_return() {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+	in.mnemonic = "bx";
+	in.operands = "%0";
+	in._is_call = false;
+	in._is_jump = true;
+	in._can_fall_through = false;
+	in._size = 0;
+	in.regs = {14, 15};
+	in.use = {0};
+	in.gen = {1};
+
+	return in;
+}
+
+vins vins::ins_arm_it(const char* cond) {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+	in.mnemonic = "it";
+	in.operands = cond;
+	in._is_call = false;
+	in._is_jump = false;
+	in._can_fall_through = true;
+	in._size = 0;
+
+	return in;
+}
+
+template<class list> vins vins::push(const list& regs) {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+	in.mnemonic = "push";
+	in.operands = "{";
+	std::stringstream ss;
+	ss << '{' << regs[0];
+	for (int i = 1; i < regs.size(); ++i) {
+		ss << ", " << regs[i];
+	}
+	ss << '}';
+	in.operands = ss.str();
+
+	in._is_call = false;
+	in._is_jump = false;
+	in._can_fall_through = true;
+	in._size = 0;
+	in.regs = regs;
+	in.use = std::vector<unsigned>(regs.size());
+	std::iota(in.use.begin(), in.use.end(), 0);
+
+	return in;
+}
+
+template<class list> vins vins::pop(const list& regs) {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+	in.mnemonic = "pop";
+	in.operands = "{";
+	std::stringstream ss;
+	ss << '{' << regs[0];
+	for (int i = 1; i < regs.size(); ++i) {
+		ss << ", " << regs[i];
+	}
+	ss << '}';
+	in.operands = ss.str();
+
+	in._is_call = false;
+	in._is_jump = false;
+	in._can_fall_through = true;
+	in._size = 0;
+	in.regs = regs;
+	in.gen = std::vector<unsigned>(regs.size());
+	std::iota(in.gen.begin(), in.gen.end(), 0);
+
+	return in;
+}
+
+template vins vins::push<std::vector<vreg>>(const std::vector<vreg>& regs);
+template vins vins::pop<std::vector<vreg>>(const std::vector<vreg>& regs);
 
 bool vins::is_pseudo() const {
 	return this->mnemonic == "pseudo";
@@ -612,8 +778,8 @@ void vins::transfer_label(vins& in) {
 	in.label = std::move(this->label);
 	label = std::string();
 
-	in.sym = this->sym;
-	this->sym = -1;
+	in.sym = std::move(this->sym);
+	this->sym.clear();
 }
 
 std::ostream& operator<<(std::ostream& os, vreg r) {
@@ -689,11 +855,11 @@ static void update_symbol_table(section *s, std::list<vins>& ins) {
 	Elf32_Sym* sym = (Elf32_Sym*)s->get_data();
 
 	for (vins& in : ins) {
-		if (in.sym >= 0) {
-			sym[in.sym].st_value = in.addr;
+		for (int s : in.sym) {
+			sym[s].st_value = in.addr;
 
-			if (ELF_ST_TYPE(sym[in.sym].st_info) == STT_FUNC)
-				sym[in.sym].st_value |= 1;
+			if (ELF_ST_TYPE(sym[s].st_info) == STT_FUNC)
+				sym[s].st_value |= 1;
 		}
 	}
 }
@@ -815,10 +981,29 @@ static void remove_nops(std::list<vins>& il) {
 	}
 }
 
+static void remove_it(std::list<vins>& il) {
+	for (auto i = il.begin(); i != il.end();) {
+		auto next = std::next(i);
+		if (i->mnemonic.rfind("it", 0) == 0) {
+			i->transfer_label(*next);
+			il.erase(i);
+		}
+		i = next;
+	}
+}
+
 void lifter::save(std::string file) {
 	if(!text_sec) {
 		if (!reader.save(file))
 			throw std::runtime_error("Failed to write to " + file);
+	}
+
+	for (auto in = instructions.begin(); in != instructions.end(); ++in) {
+		if (in->cond.size() && in->mnemonic.rfind("b", 0) != 0) {
+			vins tmp = vins::ins_arm_it(in->cond.c_str());
+			in->transfer_label(tmp);
+			instructions.insert(in, std::move(tmp));
+		}
 	}
 
 	std::stringstream assembly;
@@ -975,9 +1160,9 @@ void lifter::get_function_name() {
 static void add_call_registers(std::list<vins>& instructions) {
 	for (auto& in : instructions) {
 		if (in.is_call() && !in.is_local_call()) {
-			in.regs = {0, 1, 2, 3};
+			in.regs = {0, 1, 2, 3, 0, 1, 2, 3};
 			in.use = {0, 1, 2, 3};
-			in.gen = {0, 1, 2, 3};
+			in.gen = {4, 5, 6, 7};
 		}
 	}
 }
@@ -1011,6 +1196,7 @@ bool lifter::load(std::string file) {
 	merge_small_data(instructions);
 	remove_nops(instructions);
 	transform_cbnz_cbz(instructions);
+	remove_it(instructions);
 
 	return true;
 }
@@ -1038,15 +1224,9 @@ void lifter::add_labels_from_symbol_table() {
 
 		if (text_sec != reader.sections[section_index])
 			continue;
-		
-		if (type != STT_FUNC)
-			continue;
-
-		if (name == "$t" || name == "$d")
-			continue;
 
 		for (vins& in : this->instructions) {
-			if (in.addr == value - 1) {
+			if (type == STT_FUNC && in.addr == value - 1) {
 				if (in.label.length()) {
 					for (vins& inn : this->instructions) {
 						if (inn.target_label == in.label)
@@ -1054,7 +1234,10 @@ void lifter::add_labels_from_symbol_table() {
 					}
 				}
 				in.label = name;
-				in.sym = i;
+				in.sym.push_back(i);
+			}
+			else if (in.addr == value) {
+				in.sym.push_back(i);
 			}
 		}
 	}

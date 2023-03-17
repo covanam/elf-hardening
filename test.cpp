@@ -4,6 +4,7 @@
 #include "cfg.h"
 #include "analysis.h"
 #include "reg-alloc.h"
+#include <iomanip>
 
 int fastrand() { 
 	static int g_seed;
@@ -27,8 +28,11 @@ static void replace_reg(basic_block& bb, std::map<vreg, int>& replace_map) {
 	bb.visited = true;
 
 	for (basic_block* succ : bb.successors) {
-		if (succ)
-			replace_reg(*succ, replace_map);
+		replace_reg(*succ, replace_map);
+	}
+
+	for (basic_block* pred : bb.predecessors) {
+		replace_reg(*pred, replace_map);
 	}
 }
 
@@ -50,43 +54,81 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	control_flow_graph cfg = get_cfg(lift.instructions);
-	liveness_analysis(cfg);
-
-	int vnum = 16;
+	control_flow_graph cfg = get_cfg(lift);
+	
+	std::cout << "\nOriginal:------------------------------------------\n";
 	for (auto& bb : cfg) {
-		if (bb.front().is_data())
-			continue;
-		int skip = 0;
-		for (auto it = ++bb.begin(); it != bb.end(); ++it) {
-			if (!it->mnemonic.compare(0, 2, "it", 2)) {
-				skip = 4;
-				continue;
+		for (auto& in : bb) {
+			std::cout << in << "\t(";
+			for (vreg r : in.regs) {
+				std::cout << r << ' ';
 			}
-			if (skip) {
-				skip--;
-				continue;
-			}
-			if (it->live_regs.size() < 8) {
-				bb.insert(it, vins::ins_mov(vnum, 0xff));
-				bb.insert(it, vins::ins_add(vnum, vnum, vnum));
-				vnum++;
-				break;
-			}
+			std::cout << ") r=";
+			for (unsigned i : in.use)
+				std::cout << in.regs[i] << ' ';
+			std::cout << "w=";
+			for (unsigned i : in.gen)
+				std::cout << in.regs[i] << ' ';
+			std::cout << '\n';
+		}
+	}
+
+	split_registers(cfg, *lift.functions.begin());
+	
+	std::cout << "\nSplit:------------------------------------------\n";
+	for (auto& bb : cfg) {
+		for (auto& in : bb) {
+			std::cout << std::setw(25) << std::setfill('0') << in.addr << ' ' << in << '\n'; //<< "\t(";
+			//for (vreg r : in.regs) {
+		//		std::cout << r << ' ';
+		//	}
+		//	std::cout << ")\n";
 		}
 	}
 
 	liveness_analysis(cfg);
-	stack_offset_analysis(cfg);
+	std::cout << "\nLiveness:------------------------------------------\n";
+	for (auto& bb : cfg) {
+		for (auto& in : bb) {
+			std::cout << in << "\t(";
+			for (vreg r : in.live_regs) {
+				std::cout << r << ' ';
+			}
+			std::cout << ")\n";
+		}
+	}
 
 	for (auto& bb : cfg) {
-		if (!bb.name().empty()) {
+		if (bb.is_entry()) {
 			std::map<vreg, int> alloc = register_allocate(cfg, bb);
+			std::cout << bb.front() << '\n';
+			std::cout << "\nAlloc for " << bb.front().label << "--------------------------\n";
+
+			for (const auto& ngu : alloc) {
+				std::cout << '\t' << ngu.first << " -> " << ngu.second << '\n';
+			}
+
 			cfg.reset();
 			replace_reg(bb, alloc);
 		}
 	}
 
+	std::cout << "\nAllocate:--------------------------\n";
+	for (auto& bb : cfg) {
+		for (auto& in : bb) {
+			std::cout << std::setw(25) << std::setfill('0') << in.addr << ' ' << in << '\n';
+		}
+	}
+
+	spill(cfg);
+
+	std::cout << "\nSpilled:--------------------------\n";
+	for (auto& bb : cfg) {
+		for (auto& in : bb) {
+			std::cout << std::setw(25) << std::setfill('0') << in.addr << ' ' << in << '\n';;
+		}
+	}
+	
 	lift.instructions = cfg_dump(cfg);
 	
 	try { lift.save(argv[argc-1]); }

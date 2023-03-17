@@ -40,6 +40,9 @@ void liveness_analysis(control_flow_graph& cfg) {
 }
 
 static int get_stack_change(const vins& in) {
+	if (in.is_pseudo())
+		return 0;
+
 	for (int i : in.gen) {
 		if (in.regs[i] == 13) {
 			if (in.mnemonic.rfind("add", 0) == 0) {

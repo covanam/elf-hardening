@@ -39,7 +39,9 @@ public:
 	std::string label;
 
 	int rel = -1;
-	int sym = -1;
+	std::vector<int> sym;
+
+	std::string cond;
 
 	vins() = default;
 	vins(const cs_insn &in);
@@ -47,7 +49,15 @@ public:
 	static vins ins_cmp(vreg r, int imm);
 	static vins ins_b(const char *condition, const char *label);
 	static vins ins_add(vreg d, vreg r1, vreg r2);
+	static vins ins_add(vreg d, vreg r, int imm);
+	static vins ins_sub(vreg d, vreg r, int imm);
 	static vins ins_mov(vreg r, int imm);
+	static vins ins_str(vreg data, vreg addr, int offset);
+	static vins ins_ldr(vreg data, vreg addr, int offset);
+	static vins ins_return();
+	static vins ins_arm_it(const char* cond);
+	template<class list> static vins push(const list& regs);
+	template<class list> static vins pop(const list& regs);
 
 	static vins function_entry();
 	static vins function_exit();

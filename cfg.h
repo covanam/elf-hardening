@@ -23,7 +23,7 @@ public:
 	}
 
 	bool is_exit() const { return successors.empty(); }
-	bool is_entry() const { return this->front().label[0] != '.'; }
+	bool is_entry() const { return front().label.size() && front().label[0] != '.'; }
 
 	bool visited; // for analysis
 	bool forward_visited;
