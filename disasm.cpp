@@ -809,7 +809,10 @@ std::ostream& operator<<(std::ostream& os, const vins &b) {
 	if (b.label.length()) {
 		os << b.label << ": ";
 	} else if (b.rel >= 0) {
-		os << ".reloc" << b.addr << ": "; // b.addr should be unique
+		if (b.label.empty())
+			os << ".reloc" << b.addr << ": "; // b.addr should be unique
+		else
+			os << b.target_label;
 	}
 	os << b.mnemonic << ' ';
 	for (int i = 0; i < b.operands.length();) {
@@ -1093,7 +1096,7 @@ static void remove_fake_labels(
 		}
 
 		in.target_label.clear();
-		if (!others_jump_here)
+		if (!others_jump_here && in.label[0] == '.')
 			in.label.clear();
 	}
 }
