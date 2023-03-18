@@ -569,17 +569,17 @@ static void insert_stack_recover(basic_block& bb, int s) {
 		auto ret = std::prev(bb.end(), 2);
 		assert(ret->is_function_return());
 
-		vins tmp = vins::ins_add(vreg(13), vreg(13), s);
-		bb.insert(std::prev(bb.end()), std::move(tmp));
-
 		for (vreg& r : ret->regs) {
 			if (r.num == 15) { // pc
 				r.num = 14; // lr
 
-				tmp = vins::ins_return();
+				vins tmp = vins::ins_return();
 				bb.insert(std::prev(bb.end()), std::move(tmp));
 			}
 		}
+
+		vins tmp = vins::ins_add(vreg(13), vreg(13), s);
+		bb.insert(std::prev(bb.end(), 2), std::move(tmp));
 
 		return;
 	} else {
