@@ -589,6 +589,28 @@ static void insert_stack_recover(basic_block& bb, int s) {
 	}
 }
 
+static void fix_stack_references(basic_block& bb, int v) {
+	if (bb.visited)
+		return;
+	bb.visited = true;
+
+	for (vins& in : bb) {
+		if (in.mnemonic.rfind("ldr", 0) == 0) {
+			for (unsigned i : in.use) {
+				if (in.regs[i].num == 13) {
+					if (in.imm() + in.stack_offset >= 0) {
+						in.imm() += v;
+					}
+				}
+			}
+		}
+	}
+
+	for (auto succ : bb.successors) {
+		fix_stack_references(*succ, v);
+	}
+}
+
 void spill(control_flow_graph& cfg) {
 	for (auto& bb : cfg) {
 		for (auto& in : bb) {
@@ -649,7 +671,10 @@ void spill(control_flow_graph& cfg) {
 			std::next(bb.begin())->transfer_label(tmp);
 			bb.insert(std::next(bb.begin()), std::move(tmp));
 
+			cfg.reset();
 			insert_stack_recover(bb, s);
+			cfg.reset();
+			fix_stack_references(bb, s);
 		}
 	}
 

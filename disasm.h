@@ -66,6 +66,7 @@ public:
 
 	int size() const;
 	int64_t imm() const { return _imm; }
+	int64_t& imm() { return _imm; }
 
 	bool is_data() const;
 	bool is_jump() const { return _is_jump; };
