@@ -59,17 +59,48 @@ int main(int argc, char *argv[]) {
 	std::cout << "\nOriginal:------------------------------------------\n";
 	for (auto& bb : cfg) {
 		for (auto& in : bb) {
-			std::cout << in << "\t(";
-			for (vreg r : in.regs) {
-				std::cout << r << ' ';
+			std::cout << std::setw(25) << std::setfill('0') << in.addr << ' ' << in << '\n';
+		}
+	}
+
+	for (auto it_bb = cfg.begin(); it_bb != cfg.end(); ++it_bb) {
+		basic_block& entry = *it_bb;
+		if (entry.front().is_data())
+			continue;
+		if (entry.front().label == *lift.functions.begin()) {
+			vins tmp = vins::ins_mov(17, 321);
+			entry.insert(std::next(entry.begin()), std::move(tmp));
+			tmp = vins::ins_mov(18, 123);
+			entry.insert(std::next(entry.begin()), std::move(tmp));
+
+			for (auto it = it_bb;; ++it) {
+				basic_block& bb = *it;
+				for (auto in = ++bb.begin(); in != bb.end();) {
+					auto next = std::next(in);
+					if (fastrand() % 32 == 0) {
+						vins tmp = vins::ins_add(vreg(17), vreg(16), 99);
+						bb.insert(in, std::move(tmp));
+						tmp = vins::ins_sub(vreg(16), vreg(17), 98);
+						bb.insert(in, std::move(tmp));
+					}
+					in = next;
+
+					if (next->is_function_return())
+						break;
+				}
+
+				if (std::next(it) == cfg.end())
+					break;
+
+				if (std::next(it)->front().is_data())
+					break;
+				
+				if (std::next(it)->front().is_pseudo() &&
+					std::next(it)->front().operands == "func_entry")
+					break;
 			}
-			std::cout << ") r=";
-			for (unsigned i : in.use)
-				std::cout << in.regs[i] << ' ';
-			std::cout << "w=";
-			for (unsigned i : in.gen)
-				std::cout << in.regs[i] << ' ';
-			std::cout << '\n';
+
+			break;
 		}
 	}
 

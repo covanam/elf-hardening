@@ -367,11 +367,11 @@ static void rename(vreg from, vreg to, std::set<vins*>& def, std::set<vins*>& us
 static bool need_virtualized(vreg reg) {
 	// anything between r0-r11
 	// #TODO: r14(lr) and r12(ip) can be used too
-	return reg >= vreg(0) && reg <= vreg(11);
+	return reg >= vreg(0) && reg <= vreg(11) || reg >= 16 && reg < 32;
 }
 
 void split_registers(control_flow_graph& cfg, const std::string& entry) {
-	vreg v(16);
+	vreg v(32);
 
 	control_flow_graph::iterator entry_iter;
 	for (entry_iter = cfg.begin(); entry_iter != cfg.end(); ++entry_iter) {
