@@ -740,7 +740,6 @@ void spill(control_flow_graph& cfg) {
 					std::cout  << "in->regs[i].num = " << in->regs[i].num << '\n';
 					vins tmp = vins::ins_ldr(r, 13, -stack_offset - 4 * in->regs[i].num - 4);
 					std::cout << "Stack loc: " << (-stack_offset - 4 * in->regs[i].num - 4) << '\n';
-					in->regs[i] = r;
 					in->transfer_label(tmp);
 					bb.insert(in, std::move(tmp));
 				}
@@ -754,8 +753,13 @@ void spill(control_flow_graph& cfg) {
 					vins tmp = vins::ins_str(r, 13, -stack_offset - 4 * in->regs[i].num - 4);
 					std::cout  << "in->regs[i].num = " << in->regs[i].num << '\n';
 					std::cout << "Stack loc: " << (-stack_offset - 4 * in->regs[i].num - 4) << '\n';
-					in->regs[i] = r;
 					bb.insert(std::next(in), std::move(tmp));
+				}
+			}
+
+			for (vreg& r : in->regs) {
+				if (r.num < 0) {
+					r.num = reg_map.at(r.num);
 				}
 			}
 		}
