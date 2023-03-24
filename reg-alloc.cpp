@@ -711,9 +711,12 @@ void spill(control_flow_graph& cfg) {
 						break;
 					
 					to_stack.push_back(*l);
+					++l;
 				}
 				
-				bb.insert(in, vins::push(to_stack));
+				vins push_ins = vins::push(to_stack);
+				in->transfer_label(push_ins);
+				bb.insert(in, std::move(push_ins));
 				bb.insert(std::next(in), vins::pop(to_stack));
 				free_regs.insert(free_regs.end(), to_stack.begin(), to_stack.end());
 			}

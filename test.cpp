@@ -7,7 +7,7 @@
 #include <iomanip>
 
 int fastrand() { 
-	static int g_seed;
+	static int g_seed = 256;
 	g_seed = (214013*g_seed+2531011); 
 	return (g_seed>>16)&0x7FFF; 
 }
@@ -75,18 +75,19 @@ int main(int argc, char *argv[]) {
 
 			for (auto it = it_bb;; ++it) {
 				basic_block& bb = *it;
-				for (auto in = ++bb.begin(); in != bb.end();) {
+				for (auto in = bb.begin(); in != bb.end();) {
+					if (in->is_pseudo()) {
+						++in;
+						continue;
+					}
 					auto next = std::next(in);
-					if (fastrand() % 32 == 0) {
+					if (fastrand() % 8 == 0) {
 						vins tmp = vins::ins_add(vreg(17), vreg(16), 99);
 						bb.insert(in, std::move(tmp));
 						tmp = vins::ins_sub(vreg(16), vreg(17), 98);
 						bb.insert(in, std::move(tmp));
 					}
 					in = next;
-
-					if (next->is_function_return())
-						break;
 				}
 
 				if (std::next(it) == cfg.end())
