@@ -579,6 +579,7 @@ static void insert_stack_recover(basic_block& bb, int s) {
 		}
 
 		vins tmp = vins::ins_add(vreg(13), vreg(13), s);
+		ret->transfer_label(tmp);
 		bb.insert(std::prev(bb.end(), 2), std::move(tmp));
 
 		return;
