@@ -599,7 +599,17 @@ static void fix_stack_references(basic_block& bb, int v) {
 		if (in.mnemonic.rfind("ldr", 0) == 0) {
 			for (unsigned i : in.use) {
 				if (in.regs[i].num == 13) {
-					if (in.imm() + in.stack_offset >= 0) {
+					int imm;
+
+					int bra_p = in.operands.find(']');
+					int off_p = in.operands.find("%i");
+
+					if (off_p > bra_p)
+						imm = 0;
+					else
+						imm = in.imm();
+
+					if (imm + in.stack_offset >= 0) {
 						in.imm() += v;
 					}
 				}
