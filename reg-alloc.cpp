@@ -605,6 +605,10 @@ static void fix_stack_references(basic_block& bb, int v) {
 					int bra_p = in.operands.find(']');
 					int off_p = in.operands.find("%i");
 
+					assert(bra_p != std::string::npos);
+					if (off_p == std::string::npos)
+						continue;
+
 					if (off_p > bra_p)
 						imm = 0;
 					else
@@ -632,8 +636,10 @@ static void fix_stack_reference(vins& in, int v) {
 				int off_p = in.operands.find("%i");
 
 				assert(bra_p != std::string::npos);
-				assert(off_p != std::string::npos);
 				assert(off_p < bra_p);
+
+				if(off_p == std::string::npos)
+					in.operands.insert(bra_p, ", %i");
 
 				in.imm() += v;
 			}
