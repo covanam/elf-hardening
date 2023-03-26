@@ -84,14 +84,6 @@ register_interference_graph get_rig(
 		}
 	}
 
-	std::cout << "Rig:\n";
-	for (auto& r : rig) {
-		std::cout << r.first << " -- (";
-		for (auto reg : r.second)
-			std::cout << reg << ' ';
-		std::cout << ")\n";
-	}
-
 	rig.erase(vreg(12));
 	rig.erase(vreg(13));
 	rig.erase(vreg(14));
@@ -214,7 +206,6 @@ std::map<vreg, int> register_allocate(
 	for (auto r = stack.rbegin(); r != stack.rend(); r++) {
 		if (true) {
 			std::set<int> available = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
-			std::cout << "interfere: ("; for (auto ngu : r->second) std::cout << ngu << ' '; std::cout << ")\n";
 			for (auto i : r->second) {
 				auto allocated = allocation.find(i);
 				if (allocated != allocation.end()) {
@@ -228,10 +219,8 @@ std::map<vreg, int> register_allocate(
 					available.erase(i.num);
 				}
 			}
-			std::cout << std::flush;
 			assert(available.begin() != available.end());
 			allocation.insert({r->first, *--available.end()});
-			std::cout << "Thus allocate: " << r->first << " to " << *--available.end() << "\n\n";
 		}
 		else {
 			allocation.insert({r->first, 14});
@@ -253,15 +242,12 @@ static void look_def(
 	for (auto it = start; it != bb.rend(); ++it) {
 		auto& in = *it;
 
-		//std::cout << "Look for def " << reg << " from: " << in << '\n';
-
 		if (def_ins.find(&in) != def_ins.end())
 			return;
 
 		for (unsigned i : in.gen) {
 			if (in.regs[i] == reg) {
 				def_ins.insert(&in);
-				//std::cout << "\tFound def!\n";
 				look_use(reg, bb, it.base(), def_ins, use_ins);
 
 				if (in.cond.size())
@@ -290,15 +276,12 @@ static void look_use(
 	for (auto it = start; it != bb.end(); ++it) {
 		auto& in = *it;
 
-		//std::cout << "Look for use "<< reg <<" from: " << in << '\n';
-
 		if (use_ins.find(&in) != use_ins.end())
 			return;
 
 		for (unsigned i : in.use) {
 			if (in.regs[i] == reg) {
 				use_ins.insert(&in);
-				//std::cout << "\tFound use!\n";
 				look_def(reg, bb, std::reverse_iterator(it),
 				         def_ins, use_ins);
 			}
@@ -328,39 +311,19 @@ static void look_use(
 
 static void rename(vreg from, vreg to, std::set<vins*>& def, std::set<vins*>& use) {
 	for (vins* in : use) {
-		std::cout << "Rename use: " << *in << " (";
-		for (vreg r : in->regs) {
-			std::cout << r << ' ';
-		}
-		std::cout << ") -> ";
 		for (unsigned i : in->use) {
 			if (in->regs[i] == from) {
 				in->regs[i] = to;
 			}
 		}
-		std::cout << "(";
-		for (vreg r : in->regs) {
-			std::cout << r << ' ';
-		}
-		std::cout << ")\n";
 	}
 
 	for (vins* in : def) {
-		std::cout << "Rename use: " << *in << " (";
-		for (vreg r : in->regs) {
-			std::cout << r << ' ';
-		}
-		std::cout << ") -> ";
 		for (unsigned i : in->gen) {
 			if (in->regs[i] == from) {
 				in->regs[i] = to;
 			}
 		}
-		std::cout << "(";
-		for (vreg r : in->regs) {
-			std::cout << r << ' ';
-		}
-		std::cout << ")\n";
 	}
 }
 
@@ -393,7 +356,6 @@ void split_registers(control_flow_graph& cfg, const std::string& entry) {
 	for (auto it = entry_iter;; ++it) {
 		basic_block& bb = *it;
 		if (bb.rbegin()->is_pseudo() && bb.rbegin()->operands == "func_exit") {
-			//std::cout << "func_exit " << bb.rbegin()->label << '\n';
 			for (vreg r : bb.rbegin()->regs) {
 				if (r.num < 0) continue;
 				cfg.reset();
@@ -461,17 +423,6 @@ void split_registers(control_flow_graph& cfg, const std::string& entry) {
 		if (std::next(it)->front().is_pseudo() &&
 			std::next(it)->front().operands == "func_entry")
 			break;
-	}
-
-	std::cout << "hello-:\n";
-	for (auto& bb : cfg) {
-		for (auto& in : bb) {
-			std::cout << in << " (";
-			for (vreg r : in.regs) {
-				std::cout << r << ' ';
-			}
-			std::cout << ")\n";
-		}
 	}
 
 	for (auto it = entry_iter;; ++it) {
@@ -658,17 +609,6 @@ void spill(control_flow_graph& cfg) {
 
 	liveness_analysis(cfg);
 
-	std::cout << "\nLiveness after alloc:------------------------------------------\n";
-	for (auto& bb : cfg) {
-		for (auto& in : bb) {
-			std::cout << in << "\t(";
-			for (vreg r : in.live_regs) {
-				std::cout << r << ' ';
-			}
-			std::cout << ")\n";
-		}
-	}
-
 	std::map<basic_block*, int> stack_reserve;
 
 	cfg.reset();
@@ -686,13 +626,6 @@ void spill(control_flow_graph& cfg) {
 			cfg.reset();
 			int s = get_needed_stack(bb, 0);
 			stack_reserve.insert({&bb, s});
-		}
-	}
-
-	std::cout << "Stack analysis:-------------------------------------------\n";
-	for (auto& bb : cfg) {
-		for (auto& in : bb) {
-			std::cout << in << "\tstack = " << in.stack_offset << '\n';
 		}
 	}
 
@@ -730,8 +663,6 @@ void spill(control_flow_graph& cfg) {
 				continue;
 			
 			std::vector<vreg> free_regs = find_free_reg(*in);
-			
-			std::cout << "Spilling " << *in << '\n';
 
 			int need = reg_map.size() - free_regs.size();
 			std::vector<vreg> to_stack;
@@ -772,15 +703,10 @@ void spill(control_flow_graph& cfg) {
 
 			int stack_offset = in->stack_offset - 4 * to_stack.size();
 
-			std::cout << "Orig_off = " << in->stack_offset << '\n'
-				<< "New_off = " << stack_offset << '\n';
-
 			for (unsigned i : in->use) {
 				if (in->regs[i] < 0) {
 					vreg r = reg_map.at(in->regs[i].num);
-					std::cout  << "in->regs[i].num = " << in->regs[i].num << '\n';
 					vins tmp = vins::ins_ldr(r, 13, -stack_offset - 4 * in->regs[i].num - 4);
-					std::cout << "Stack loc: " << (-stack_offset - 4 * in->regs[i].num - 4) << '\n';
 					in->transfer_label(tmp);
 					bb.insert(in, std::move(tmp));
 				}
@@ -792,8 +718,6 @@ void spill(control_flow_graph& cfg) {
 				if (in->regs[i] < 0) {
 					vreg r = reg_map.at(in->regs[i].num);
 					vins tmp = vins::ins_str(r, 13, -stack_offset - 4 * in->regs[i].num - 4);
-					std::cout  << "in->regs[i].num = " << in->regs[i].num << '\n';
-					std::cout << "Stack loc: " << (-stack_offset - 4 * in->regs[i].num - 4) << '\n';
 					bb.insert(std::next(in), std::move(tmp));
 				}
 			}
