@@ -623,6 +623,24 @@ static void fix_stack_references(basic_block& bb, int v) {
 	}
 }
 
+static void fix_stack_reference(vins& in, int v) {
+	if (in.mnemonic.rfind("ldr", 0) == 0 ||
+	    in.mnemonic.rfind("str", 0) == 0) {
+		for (unsigned i : in.use) {
+			if (in.regs[i].num == 13) {
+				int bra_p = in.operands.find(']');
+				int off_p = in.operands.find("%i");
+
+				assert(bra_p != std::string::npos);
+				assert(off_p != std::string::npos);
+				assert(off_p < bra_p);
+
+				in.imm() += v;
+			}
+		}
+	}
+}
+
 void spill(control_flow_graph& cfg) {
 	for (auto& bb : cfg) {
 		for (auto& in : bb) {
@@ -734,6 +752,8 @@ void spill(control_flow_graph& cfg) {
 				bb.insert(in, std::move(push_ins));
 				bb.insert(std::next(in), vins::pop(to_stack));
 				free_regs.insert(free_regs.end(), to_stack.begin(), to_stack.end());
+
+				fix_stack_reference(*in, to_stack.size() * 4);
 			}
 
 			assert(free_regs.size() >= reg_map.size());
