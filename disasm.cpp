@@ -695,9 +695,8 @@ vins vins::function_entry() {
 	in.mnemonic = "pseudo";
 	in.operands = "func_entry";
 
-	// #TODO: can we remove r12 (ip)?
-	in.regs = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
-	in.gen = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+	in.regs = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15};
+	in.gen = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15};
 
 	in._is_call = false;
 	in._is_jump = false;
@@ -712,9 +711,8 @@ vins vins::function_exit() {
 	in.mnemonic = "pseudo";
 	in.operands = "func_exit";
 
-	// #TODO: can we remove r12 (ip)?
-	in.regs = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
-	in.use = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+	in.regs = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15};
+	in.use = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15};
 
 	in._is_call = false;
 	in._is_jump = false;
