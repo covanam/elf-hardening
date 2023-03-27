@@ -59,6 +59,8 @@ public:
 	template<class list> static vins push(const list& regs);
 	template<class list> static vins pop(const list& regs);
 
+	static vins data_word(int data);
+
 	static vins function_entry();
 	static vins function_exit();
 
@@ -103,11 +105,13 @@ private:
 	void add_labels_from_symbol_table();
 	void add_target_labels(); 
 	void get_function_name();
+	void add_second_stack();
 
 	ELFIO::elfio reader;
 	ELFIO::section *sym_sec;
 	ELFIO::section *rel_sec;
 	ELFIO::section *text_sec;
+	ELFIO::section *str_sec;
 };
 
 #endif //DISASM_H

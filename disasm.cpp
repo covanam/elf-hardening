@@ -620,6 +620,20 @@ vins vins::ins_arm_it(const char* cond) {
 	return in;
 }
 
+vins vins::data_word(int data) {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+	in.mnemonic = ".word";
+	in.operands = std::to_string(data);
+	in._is_call = false;
+	in._is_jump = false;
+	in._can_fall_through = false;
+	in._size = 0;
+
+	return in;
+}
+
+
 template<class list> vins vins::push(const list& regs) {
 	vins in;
 	in.addr = std::numeric_limits<uint64_t>::max();
@@ -1170,26 +1184,68 @@ static void add_call_registers(std::list<vins>& instructions) {
 	}
 }
 
+void lifter::add_second_stack() {
+	string_section_accessor str_writer(str_sec);
+	symbol_section_accessor sym_writer(reader, sym_sec);
+	relocation_section_accessor rel_writer(reader, rel_sec);
+
+	Elf_Word sym = sym_writer.add_symbol(
+		str_writer,
+		"__second_stack",
+		0,
+		0,
+		ELF_ST_INFO(STB_GLOBAL, STT_OBJECT),
+		0,
+		SHN_UNDEF);
+
+	rel_writer.add_entry(0, sym, 2); // #define R_ARM_ABS32 2
+
+	vins second_sp = vins::data_word(0);
+	second_sp.label = ".second_stack";
+	second_sp.rel = rel_writer.get_entries_num() - 1;
+
+	instructions.push_back(std::move(second_sp));
+}
+
 bool lifter::load(std::string file) {
 	if (!reader.load(file))
 		return false;
 
-	sym_sec = rel_sec = text_sec = nullptr;
+	sym_sec = rel_sec = text_sec = str_sec = nullptr;
+
+	int text_idx, symtab_idx;
 	for (int i = 0; i < reader.sections.size(); ++i) {
 		section* psec = reader.sections[i];
 		if (psec->get_type() == SHT_SYMTAB) {
 			sym_sec = psec;
+			symtab_idx = i;
+		}
+		else if (reader.sections[i]->get_name() == ".strtab") {
+			str_sec = psec;
 		}
 		else if (reader.sections[i]->get_name() == ".rel.text") {
 			rel_sec = psec;
 		}
 		else if (reader.sections[i]->get_name() == ".text") {
 			text_sec = psec;
+			text_idx = i;
 		}
 	}
 
 	if (!text_sec)
 		return true;
+
+	if (rel_sec == nullptr) {
+		rel_sec = reader.sections.add(".rel.text");
+		rel_sec->set_type(SHT_REL);
+		//rel_sec->set_flags(SHF_ALLOC | SHF_EXECINSTR);
+		rel_sec->set_info(text_idx);
+		rel_sec->set_link(symtab_idx);
+		rel_sec->set_entry_size(sizeof(struct Elf32_Rel));
+	}
+
+	assert(str_sec && sym_sec && rel_sec);
+
 
 	get_function_name();
 	instructions = disassemble(reader);
@@ -1200,6 +1256,7 @@ bool lifter::load(std::string file) {
 	remove_nops(instructions);
 	transform_cbnz_cbz(instructions);
 	remove_it(instructions);
+	add_second_stack();
 
 	return true;
 }
