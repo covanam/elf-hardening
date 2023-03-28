@@ -524,6 +524,17 @@ static void insert_stack_recover(basic_block& bb, int s) {
 		auto ret = std::prev(bb.end(), 2);
 		assert(ret->is_function_return());
 
+		for (vreg& r : ret->regs) {
+			if (r.num == 15) { // pc
+				r.num = 14; // lr
+
+				vins tmp = vins::ins_return();
+				bb.insert(std::prev(bb.end()), std::move(tmp));
+			}
+		}
+
+		ret = std::prev(bb.end(), 2);
+
 		basic_block store_second_stack = basic_block({
 			vins::ins_ldr(vreg(12), ".second_stack"), // address of stack ptr
 			vins::ins_sub(vreg(11), vreg(11), s + 4), // subtract stack ptr
@@ -595,7 +606,9 @@ void spill(control_flow_graph& cfg) {
 				vins::ins_ldr(vreg(12), ".second_stack"),
 				vins::ins_ldr(vreg(12), vreg(12), 0),
 				vins::ins_str(vreg(11), vreg(12), 0),
-				vins::ins_add(vreg(11), vreg(12), s + 4)
+				vins::ins_add(vreg(11), vreg(12), s + 4),
+				vins::ins_ldr(vreg(12), ".second_stack"),
+				vins::ins_str(vreg(11), vreg(12), 0)
 			});
 
 			bb.splice(std::next(bb.begin()), load_second_stack);
