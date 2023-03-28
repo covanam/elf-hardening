@@ -335,29 +335,27 @@ static bool need_virtualized(vreg reg) {
 	return reg >= vreg(0) && reg <= vreg(11) || reg >= 16 && reg < 32;
 }
 
-void split_registers(control_flow_graph& cfg, const std::string& entry) {
+void split_registers(control_flow_graph& cfg) {
 	vreg v(32);
 
-	control_flow_graph::iterator entry_iter;
-	for (entry_iter = cfg.begin(); entry_iter != cfg.end(); ++entry_iter) {
-		if (entry_iter->begin()->label == entry) {
-			for (vreg r : entry_iter->begin()->regs) {
+	for (auto& bb : cfg) {
+		if (bb.front().is_pseudo() && bb.front().operands == "func_entry") {
+			for (vreg r : bb.begin()->regs) {
 				if (r.num < 0) continue;
 				cfg.reset();
 				std::set<vins*> use_ins, def_ins;
-				def_ins.insert(&*entry_iter->begin());
-				look_use(r, *entry_iter, std::next(entry_iter->begin()),
+				def_ins.insert(&*bb.begin());
+				look_use(r, bb, std::next(bb.begin()),
 					def_ins, use_ins);
 				rename(r, -r.num - 1, def_ins, use_ins);
 			}
-			break;
 		}
 	}
 
-	assert(entry_iter != cfg.end());
+	for (auto& bb : cfg) {
+		if (bb.front().is_data())
+			continue;
 
-	for (auto it = entry_iter;; ++it) {
-		basic_block& bb = *it;
 		if (bb.rbegin()->is_pseudo() && bb.rbegin()->operands == "func_exit") {
 			for (vreg r : bb.rbegin()->regs) {
 				if (r.num < 0) continue;
@@ -417,20 +415,12 @@ void split_registers(control_flow_graph& cfg, const std::string& entry) {
 				}
 			}
 		}
-
-		if (std::next(it) == cfg.end())
-			break;
-
-		if (std::next(it)->front().is_data())
-			break;
-		
-		if (std::next(it)->front().is_pseudo() &&
-			std::next(it)->front().operands == "func_entry")
-			break;
 	}
 
-	for (auto it = entry_iter;; ++it) {
-		basic_block& bb = *it;
+	for (auto& bb : cfg) {
+		if (bb.front().is_data())
+			continue;
+
 		for (auto it = bb.begin(); it != bb.end(); ++it) {
 			for (unsigned i : it->use) {
 				vreg reg = it->regs[i];
@@ -460,20 +450,9 @@ void split_registers(control_flow_graph& cfg, const std::string& entry) {
 				}
 			}
 		}
-
-		if (std::next(it) == cfg.end())
-			break;
-
-		if (std::next(it)->front().is_data())
-			break;
-		
-		if (std::next(it)->front().is_pseudo() &&
-			std::next(it)->front().operands == "func_entry")
-			break;
 	}
 
-	for (auto it = cfg.begin(); it != cfg.end(); ++it) {
-		basic_block& bb = *it;
+	for (auto& bb : cfg) {
 		for (auto& in : bb) {
 			for (vreg& r : in.regs) {
 				if (r.num < 0)

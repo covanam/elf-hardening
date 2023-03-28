@@ -7,7 +7,7 @@
 #include <iomanip>
 
 int fastrand() { 
-	static int g_seed = 256;
+	static int g_seed;
 	g_seed = (214013*g_seed+2531011); 
 	return (g_seed>>16)&0x7FFF; 
 }
@@ -55,7 +55,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	control_flow_graph cfg = get_cfg(lift);
-	
+
 	std::cout << "\nOriginal:------------------------------------------\n";
 	for (auto& bb : cfg) {
 		for (auto& in : bb) {
@@ -63,11 +63,15 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
+	int bb_from = 0;
+	int bb_to = 10;
+	int bb_count = 0;
+
 	for (auto it_bb = cfg.begin(); it_bb != cfg.end(); ++it_bb) {
 		basic_block& entry = *it_bb;
 		if (entry.front().is_data())
 			continue;
-		if (entry.front().label == *lift.functions.begin()) {
+		if (lift.functions.find(entry.front().label) != lift.functions.end()) {
 			vins tmp = vins::ins_mov(17, 321);
 			entry.insert(std::next(entry.begin()), std::move(tmp));
 			tmp = vins::ins_mov(18, 123);
@@ -81,12 +85,13 @@ int main(int argc, char *argv[]) {
 						continue;
 					}
 					auto next = std::next(in);
-					if (fastrand() % 8 == 0) {
+					if (fastrand() % 8 == 0) {//if (bb_count >= bb_from && bb_count <= bb_to) {
 						vins tmp = vins::ins_add(vreg(17), vreg(16), 99);
 						bb.insert(in, std::move(tmp));
 						tmp = vins::ins_sub(vreg(16), vreg(17), 98);
 						bb.insert(in, std::move(tmp));
 					}
+					++bb_count;
 					in = next;
 				}
 
@@ -100,12 +105,10 @@ int main(int argc, char *argv[]) {
 					std::next(it)->front().operands == "func_entry")
 					break;
 			}
-
-			break;
 		}
 	}
 
-	split_registers(cfg, *lift.functions.begin());
+	split_registers(cfg);
 	
 	std::cout << "\nSplit:------------------------------------------\n";
 	for (auto& bb : cfg) {
@@ -119,26 +122,10 @@ int main(int argc, char *argv[]) {
 	}
 
 	liveness_analysis(cfg);
-	std::cout << "\nLiveness:------------------------------------------\n";
-	for (auto& bb : cfg) {
-		for (auto& in : bb) {
-			std::cout << in << "\t(";
-			for (vreg r : in.live_regs) {
-				std::cout << r << ' ';
-			}
-			std::cout << ")\n";
-		}
-	}
 
 	for (auto& bb : cfg) {
 		if (bb.is_entry()) {
 			std::map<vreg, int> alloc = register_allocate(cfg, bb);
-			std::cout << bb.front() << '\n';
-			std::cout << "\nAlloc for " << bb.front().label << "--------------------------\n";
-
-			for (const auto& ngu : alloc) {
-				std::cout << '\t' << ngu.first << " -> " << ngu.second << '\n';
-			}
 
 			cfg.reset();
 			replace_reg(bb, alloc);

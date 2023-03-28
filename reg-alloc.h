@@ -7,6 +7,6 @@ std::map<vreg, int> register_allocate(
 	basic_block& entry
 );
 
-void split_registers(control_flow_graph& cfg, const std::string& entry);
+void split_registers(control_flow_graph& cfg);
 
 void spill(control_flow_graph& cfg);
