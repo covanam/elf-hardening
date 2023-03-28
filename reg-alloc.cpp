@@ -4,7 +4,7 @@
 #include <limits>
 #include "analysis.h"
 
-static constexpr int num_physical_reg = 12;
+static constexpr int num_physical_reg = 11;
 
 using register_interference_graph = std::map<vreg, std::set<vreg>>;
 
@@ -84,11 +84,13 @@ register_interference_graph get_rig(
 		}
 	}
 
+	rig.erase(vreg(11));
 	rig.erase(vreg(12));
 	rig.erase(vreg(13));
 	rig.erase(vreg(14));
 	rig.erase(vreg(15));
 	for (auto& r : rig) {
+		r.second.erase(vreg(11));
 		r.second.erase(vreg(12));
 		r.second.erase(vreg(13));
 		r.second.erase(vreg(14));
@@ -205,7 +207,7 @@ std::map<vreg, int> register_allocate(
 
 	for (auto r = stack.rbegin(); r != stack.rend(); r++) {
 		if (true) {
-			std::set<int> available = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+			std::set<int> available = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
 			for (auto i : r->second) {
 				auto allocated = allocation.find(i);
 				if (allocated != allocation.end()) {
@@ -215,7 +217,7 @@ std::map<vreg, int> register_allocate(
 					// pass
 				}
 				else {
-					assert(i.num < 12);
+					assert(i.num < 11);
 					available.erase(i.num);
 				}
 			}
@@ -343,6 +345,7 @@ void split_registers(control_flow_graph& cfg, const std::string& entry) {
 				if (r.num < 0) continue;
 				cfg.reset();
 				std::set<vins*> use_ins, def_ins;
+				def_ins.insert(&*entry_iter->begin());
 				look_use(r, *entry_iter, std::next(entry_iter->begin()),
 					def_ins, use_ins);
 				rename(r, -r.num - 1, def_ins, use_ins);
@@ -360,6 +363,7 @@ void split_registers(control_flow_graph& cfg, const std::string& entry) {
 				if (r.num < 0) continue;
 				cfg.reset();
 				std::set<vins*> use_ins, def_ins;
+				use_ins.insert(&*bb.rbegin());
 				look_def(r, bb, bb.rbegin(), def_ins, use_ins);
 				rename(r, -r.num - 1, def_ins, use_ins);
 			}
@@ -481,7 +485,7 @@ void split_registers(control_flow_graph& cfg, const std::string& entry) {
 
 static std::vector<vreg> find_free_reg(const vins& in) {
 	std::vector<vreg> free_reg;
-	for (int i = 0; i < 12; ++i) {
+	for (int i = 0; i < 11; ++i) {
 		auto tmp = in.live_regs.find(vreg(i));
 		if (tmp == in.live_regs.end())
 			free_reg.push_back(vreg(i));
@@ -520,61 +524,20 @@ static void insert_stack_recover(basic_block& bb, int s) {
 		auto ret = std::prev(bb.end(), 2);
 		assert(ret->is_function_return());
 
-		for (vreg& r : ret->regs) {
-			if (r.num == 15) { // pc
-				r.num = 14; // lr
-
-				vins tmp = vins::ins_return();
-				bb.insert(std::prev(bb.end()), std::move(tmp));
-			}
-		}
-
-		ret = std::prev(bb.end(), 2);
-		vins tmp = vins::ins_add(vreg(13), vreg(13), s);
-		ret->transfer_label(tmp);
-		bb.insert(std::prev(bb.end(), 2), std::move(tmp));
+		basic_block store_second_stack = basic_block({
+			vins::ins_ldr(vreg(12), ".second_stack"), // address of stack ptr
+			vins::ins_sub(vreg(11), vreg(11), s + 4), // subtract stack ptr
+			vins::ins_str(vreg(11), vreg(12), 0), // save stack ptr
+			vins::ins_ldr(vreg(11), vreg(11), 0), // recover original r11
+		});
+		ret->transfer_label(store_second_stack.front());
+		bb.splice(std::prev(bb.end(), 2), store_second_stack);
 
 		return;
 	} else {
 		for (auto succ : bb.successors) {
 			insert_stack_recover(*succ, s);
 		}
-	}
-}
-
-static void fix_stack_references(basic_block& bb, int v) {
-	if (bb.visited)
-		return;
-	bb.visited = true;
-
-	for (vins& in : bb) {
-		if (in.mnemonic.rfind("ldr", 0) == 0) {
-			for (unsigned i : in.use) {
-				if (in.regs[i].num == 13) {
-					int imm;
-
-					int bra_p = in.operands.find(']');
-					int off_p = in.operands.find("%i");
-
-					assert(bra_p != std::string::npos);
-					if (off_p == std::string::npos)
-						continue;
-
-					if (off_p > bra_p)
-						imm = 0;
-					else
-						imm = in.imm();
-
-					if (imm + in.stack_offset >= 0) {
-						in.imm() += v;
-					}
-				}
-			}
-		}
-	}
-
-	for (auto succ : bb.successors) {
-		fix_stack_references(*succ, v);
 	}
 }
 
@@ -615,14 +578,6 @@ void spill(control_flow_graph& cfg) {
 
 	for (auto& bb : cfg) {
 		if (bb.front().is_pseudo() && bb.front().operands == "func_entry") {
-			try {
-				cfg.reset();
-				stack_offset_analysis(bb);
-			} catch (stack_analysis_failure& e) {
-				std::cerr << "Failed to analyse stack. Reason:" << e.reason() << '\n';
-				std::terminate();
-			}
-
 			cfg.reset();
 			int s = get_needed_stack(bb, 0);
 			stack_reserve.insert({&bb, s});
@@ -636,14 +591,17 @@ void spill(control_flow_graph& cfg) {
 			int s = stack_reserve.at(&bb);
 			if (s == 0) continue;
 
-			vins tmp = vins::ins_sub(vreg(13), vreg(13), s);
-			std::next(bb.begin())->transfer_label(tmp);
-			bb.insert(std::next(bb.begin()), std::move(tmp));
+			basic_block load_second_stack = basic_block({
+				vins::ins_ldr(vreg(12), ".second_stack"),
+				vins::ins_ldr(vreg(12), vreg(12), 0),
+				vins::ins_str(vreg(11), vreg(12), 0),
+				vins::ins_add(vreg(11), vreg(12), s + 4)
+			});
+
+			bb.splice(std::next(bb.begin()), load_second_stack);
 
 			cfg.reset();
 			insert_stack_recover(bb, s);
-			cfg.reset();
-			fix_stack_references(bb, s);
 		}
 	}
 
@@ -671,7 +629,7 @@ void spill(control_flow_graph& cfg) {
 				auto l = in->live_regs.begin();
 				for (int i = 0; i < need; ++i) {
 					while (l != in->live_regs.end() &&
-					       !(0 <= l->num && l->num < 12) ||
+					       !(0 <= l->num && l->num < 11) ||
 					       std::find(in->regs.begin(), in->regs.end(), *l)
 					         != in->regs.end()
 					       ) {
@@ -701,23 +659,19 @@ void spill(control_flow_graph& cfg) {
 				free_regs_idx++;
 			}
 
-			int stack_offset = in->stack_offset - 4 * to_stack.size();
-
 			for (unsigned i : in->use) {
 				if (in->regs[i] < 0) {
 					vreg r = reg_map.at(in->regs[i].num);
-					vins tmp = vins::ins_ldr(r, 13, -stack_offset - 4 * in->regs[i].num - 4);
+					vins tmp = vins::ins_ldr(r, 11, 4 * in->regs[i].num);
 					in->transfer_label(tmp);
 					bb.insert(in, std::move(tmp));
 				}
 			}
 
-			stack_offset = in->stack_offset - 4 * to_stack.size();
-
 			for (unsigned i : in->gen) {
 				if (in->regs[i] < 0) {
 					vreg r = reg_map.at(in->regs[i].num);
-					vins tmp = vins::ins_str(r, 13, -stack_offset - 4 * in->regs[i].num - 4);
+					vins tmp = vins::ins_str(r, 11, 4 * in->regs[i].num);
 					bb.insert(std::next(in), std::move(tmp));
 				}
 			}

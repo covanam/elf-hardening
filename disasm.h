@@ -54,6 +54,8 @@ public:
 	static vins ins_mov(vreg r, int imm);
 	static vins ins_str(vreg data, vreg addr, int offset);
 	static vins ins_ldr(vreg data, vreg addr, int offset);
+	static vins ins_str(vreg data, const std::string& label);
+	static vins ins_ldr(vreg data, const std::string& label);
 	static vins ins_return();
 	static vins ins_arm_it(const char* cond);
 	template<class list> static vins push(const list& regs);
@@ -105,8 +107,11 @@ private:
 	void add_labels_from_symbol_table();
 	void add_target_labels(); 
 	void get_function_name();
-	void add_second_stack();
-
+	void add_second_stack_address(
+		std::list<vins>::iterator pos,
+		const std::string& label
+	);
+	void add_second_stack_addresses();
 	ELFIO::elfio reader;
 	ELFIO::section *sym_sec;
 	ELFIO::section *rel_sec;

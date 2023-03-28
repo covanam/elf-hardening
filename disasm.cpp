@@ -591,6 +591,37 @@ vins vins::ins_ldr(vreg data, vreg addr, int offset) {
 	return in;
 }
 
+vins vins::ins_str(vreg data, const std::string& label) {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+	in.mnemonic = "str";
+	in.operands = "%0, %m";
+	in.target_label = label;
+	in._is_call = false;
+	in._is_jump = false;
+	in._can_fall_through = true;
+	in._size = 0;
+	in.regs = {data};
+	in.use = {0};
+
+	return in;
+}
+vins vins::ins_ldr(vreg data, const std::string& label) {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+	in.mnemonic = "ldr";
+	in.operands = "%0, %m";
+	in.target_label = label;
+	in._is_call = false;
+	in._is_jump = false;
+	in._can_fall_through = true;
+	in._size = 0;
+	in.regs = {data};
+	in.gen = {0};
+
+	return in;
+}
+
 vins vins::ins_return() {
 	vins in;
 	in.addr = std::numeric_limits<uint64_t>::max();
@@ -640,9 +671,9 @@ template<class list> vins vins::push(const list& regs) {
 	in.mnemonic = "push";
 	in.operands = "{";
 	std::stringstream ss;
-	ss << '{' << regs[0];
-	for (int i = 1; i < regs.size(); ++i) {
-		ss << ", " << regs[i];
+	ss << '{' << *regs.begin();
+	for (auto r = std::next(regs.begin()); r != regs.end(); ++r) {
+		ss << ", " << *r;
 	}
 	ss << '}';
 	in.operands = ss.str();
@@ -664,9 +695,9 @@ template<class list> vins vins::pop(const list& regs) {
 	in.mnemonic = "pop";
 	in.operands = "{";
 	std::stringstream ss;
-	ss << '{' << regs[0];
-	for (int i = 1; i < regs.size(); ++i) {
-		ss << ", " << regs[i];
+	ss << '{' << *regs.begin();
+	for (auto r = std::next(regs.begin()); r != regs.end(); ++r) {
+		ss << ", " << *r;
 	}
 	ss << '}';
 	in.operands = ss.str();
@@ -684,6 +715,8 @@ template<class list> vins vins::pop(const list& regs) {
 
 template vins vins::push<std::vector<vreg>>(const std::vector<vreg>& regs);
 template vins vins::pop<std::vector<vreg>>(const std::vector<vreg>& regs);
+template vins vins::push<std::initializer_list<vreg>>(const std::initializer_list<vreg>& regs);
+template vins vins::pop<std::initializer_list<vreg>>(const std::initializer_list<vreg>& regs);
 
 bool vins::is_pseudo() const {
 	return this->mnemonic == "pseudo";
@@ -696,7 +729,7 @@ vins vins::function_entry() {
 	in.operands = "func_entry";
 
 	in.regs = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15};
-	in.gen = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15};
+	in.gen = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14};
 
 	in._is_call = false;
 	in._is_jump = false;
@@ -712,7 +745,7 @@ vins vins::function_exit() {
 	in.operands = "func_exit";
 
 	in.regs = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15};
-	in.use = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15};
+	in.use = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14};
 
 	in._is_call = false;
 	in._is_jump = false;
@@ -1007,11 +1040,31 @@ static void remove_it(std::list<vins>& il) {
 	}
 }
 
+void lifter::add_second_stack_addresses() {
+	std::string sstack_label = ".second_stack_0";
+	int label_count = 1;
+
+	add_second_stack_address(instructions.end(), sstack_label);
+
+	for (auto in = instructions.rbegin(); in != --instructions.rend(); ++in) {
+		if (in->is_pseudo() && in->operands == "func_entry") {
+			sstack_label = ".second_stack_" + std::to_string(label_count);
+			add_second_stack_address(--in.base(), sstack_label);
+			++label_count;
+		}
+
+		if (in->target_label == ".second_stack")
+			in->target_label = sstack_label;
+	}
+}
+
 void lifter::save(std::string file) {
 	if(!text_sec) {
 		if (!reader.save(file))
 			throw std::runtime_error("Failed to write to " + file);
 	}
+
+	add_second_stack_addresses();
 
 	for (auto in = instructions.begin(); in != instructions.end(); ++in) {
 		if (in->cond.size() && in->mnemonic.rfind("b", 0) != 0) {
@@ -1182,7 +1235,10 @@ static void add_call_registers(std::list<vins>& instructions) {
 	}
 }
 
-void lifter::add_second_stack() {
+void lifter::add_second_stack_address(
+	std::list<vins>::iterator pos,
+	const std::string& label
+) {
 	string_section_accessor str_writer(str_sec);
 	symbol_section_accessor sym_writer(reader, sym_sec);
 	relocation_section_accessor rel_writer(reader, rel_sec);
@@ -1199,10 +1255,10 @@ void lifter::add_second_stack() {
 	rel_writer.add_entry(0, sym, 2); // #define R_ARM_ABS32 2
 
 	vins second_sp = vins::data_word(0);
-	second_sp.label = ".second_stack";
+	second_sp.label = label;
 	second_sp.rel = rel_writer.get_entries_num() - 1;
 
-	instructions.push_back(std::move(second_sp));
+	instructions.insert(pos, std::move(second_sp));
 }
 
 bool lifter::load(std::string file) {
@@ -1254,7 +1310,6 @@ bool lifter::load(std::string file) {
 	remove_nops(instructions);
 	transform_cbnz_cbz(instructions);
 	remove_it(instructions);
-	add_second_stack();
 
 	return true;
 }

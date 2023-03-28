@@ -7,6 +7,7 @@
 #include <vector>
 #include <list>
 #include <set>
+#include <initializer_list>
 
 class basic_block : public std::list<vins> {
 public:
@@ -22,8 +23,17 @@ public:
 		backward_visited = false;
 	}
 
+	basic_block(std::initializer_list<vins> ins)
+		:std::list<vins>(ins)
+	{
+		next = nullptr;
+		visited = false;
+		forward_visited = false;
+		backward_visited = false;
+	}
+
 	bool is_exit() const { return successors.empty(); }
-	bool is_entry() const { return front().label.size() && front().label[0] != '.'; }
+	bool is_entry() const { return front().is_pseudo() && front().operands == "func_entry"; }
 
 	bool visited; // for analysis
 	bool forward_visited;
