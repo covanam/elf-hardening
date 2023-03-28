@@ -68,29 +68,31 @@ static void link_next_basic_block(
 }
 
 static void link_follow_function_call(
-	basic_block& caller,
-	basic_block& callee
+	basic_block* const caller,
+	basic_block* const callee
 ) {
-	if (callee.callers.find(&caller) != callee.callers.end())
+	if (callee->callers.find(caller) != callee->callers.end())
 		return;
 	
-	callee.callers.insert(&caller);
+	callee->callers.insert(caller);
 
-	if (callee.back().is_function_return()) {
-		basic_block* return_bb = caller.next;
-		for (auto succ : callee.successors)
-			if (succ == return_bb)
-				return;
-		link_basic_blocks(callee, *return_bb);
+	if (callee->back().is_function_return()) {
+		if (caller) {
+			basic_block* return_bb = caller->next;
+			for (auto succ : callee->successors)
+				if (succ == return_bb)
+					return;
+			link_basic_blocks(*callee, *return_bb);
+		}
 	}
-	else if (callee.back().is_call()) {
-		if (callee.back().is_local_call())
-			link_follow_function_call(callee, *callee.successors[0]);
-		link_follow_function_call(caller, *callee.next);
+	else if (callee->back().is_call()) {
+		if (callee->back().is_local_call())
+			link_follow_function_call(callee, callee->successors[0]);
+		link_follow_function_call(caller, callee->next);
 	}
 	else {
-		for (auto succ : callee.successors) {
-			link_follow_function_call(caller, *succ);
+		for (auto succ : callee->successors) {
+			link_follow_function_call(caller, succ);
 		}
 	}
 }
@@ -137,28 +139,22 @@ control_flow_graph get_cfg(lifter& lift) {
 	}
 
 	for (auto& bb : cfg) {
-		if (bb.back().is_local_call()) {
-			link_follow_function_call(bb, *bb.successors[0]);
+		if (functions.find(bb.front().label) != functions.end()) {
+			link_follow_function_call(nullptr, &bb);
 		}
 	}
 
 	/* calling convention */
 	for (auto& bb : cfg) {
-		for (auto it = bb.begin(); it != bb.end();) {
-			vins& in = *it;
-			auto next = std::next(it);
-
-			if (functions.find(in.label) != functions.end()) {
-				vins tmp = vins::function_entry();
-				it->transfer_label(tmp);
-				bb.insert(it, std::move(tmp));
-			}
-			if (in.is_function_return() && bb.successors.empty()) {
-				vins tmp = vins::function_exit();
-				bb.insert(std::next(it), std::move(tmp));
-			}
-
-			it = next;
+		if (functions.find(bb.front().label) != functions.end()) {
+			vins tmp = vins::function_entry();
+			bb.front().transfer_label(tmp);
+			bb.push_front(std::move(tmp));
+		}
+		if (bb.back().is_function_return() &&
+		    bb.callers.find(nullptr) != bb.callers.end()) {
+			vins tmp = vins::function_exit();
+			bb.push_back(std::move(tmp));
 		}
 	}
 

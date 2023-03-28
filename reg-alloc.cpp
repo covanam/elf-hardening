@@ -370,7 +370,7 @@ void split_registers(control_flow_graph& cfg, const std::string& entry) {
 		}
 
 		for (auto it = bb.begin(); it != bb.end(); ++it) {
-			if (it->is_call()) {
+			if (it->is_call() && !it->is_local_call()) {
 				for (unsigned i : it->use) {
 					vreg r = it->regs[i];
 					if (r.num < 0) continue;
@@ -472,7 +472,7 @@ void split_registers(control_flow_graph& cfg, const std::string& entry) {
 			break;
 	}
 
-	for (auto it = entry_iter; it != cfg.end(); ++it) {
+	for (auto it = cfg.begin(); it != cfg.end(); ++it) {
 		basic_block& bb = *it;
 		for (auto& in : bb) {
 			for (vreg& r : in.regs) {
