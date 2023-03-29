@@ -158,6 +158,27 @@ control_flow_graph get_cfg(lifter& lift) {
 		}
 	}
 
+	for (auto bb = cfg.begin(); bb != cfg.end();) {
+		if (bb->front().is_data()) {
+			bb++;
+			continue;
+		}
+		auto next = std::next(bb);
+		if (bb->predecessors.empty() && bb->front().label.empty()) {
+			for (auto succ : bb->successors) {
+				auto& pred = succ->predecessors;
+				for (auto p = pred.begin(); p != pred.end(); ++p) {
+					if (*p == &*bb) {
+						pred.erase(p);
+						break;
+					}
+				}
+			}
+			cfg.erase(bb);
+		}
+		bb = next;
+	}
+
 	return cfg;
 }
 

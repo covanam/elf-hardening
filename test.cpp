@@ -59,52 +59,39 @@ int main(int argc, char *argv[]) {
 	std::cout << "\nOriginal:------------------------------------------\n";
 	for (auto& bb : cfg) {
 		for (auto& in : bb) {
-			std::cout << std::setw(25) << std::setfill('0') << in.addr << ' ' << in << '\n';
+			std::cout << std::hex << in.addr << std::dec << ' ' << in << '\n';
 		}
 	}
 
 	int bb_from = 0;
-	int bb_to = 10;
+	int bb_to = 50;
 	int bb_count = 0;
 
-	for (auto it_bb = cfg.begin(); it_bb != cfg.end(); ++it_bb) {
-		basic_block& entry = *it_bb;
-		if (entry.front().is_data())
+	for (auto& bb : cfg) {
+		if (bb.front().is_data())
 			continue;
-		if (lift.functions.find(entry.front().label) != lift.functions.end()) {
+
+		if (lift.functions.find(bb.front().label) != lift.functions.end()) {
 			vins tmp = vins::ins_mov(17, 321);
-			entry.insert(std::next(entry.begin()), std::move(tmp));
+			bb.insert(std::next(bb.begin()), std::move(tmp));
 			tmp = vins::ins_mov(18, 123);
-			entry.insert(std::next(entry.begin()), std::move(tmp));
+			bb.insert(std::next(bb.begin()), std::move(tmp));
+		}
 
-			for (auto it = it_bb;; ++it) {
-				basic_block& bb = *it;
-				for (auto in = bb.begin(); in != bb.end();) {
-					if (in->is_pseudo()) {
-						++in;
-						continue;
-					}
-					auto next = std::next(in);
-					if (fastrand() % 8 == 0) {//if (bb_count >= bb_from && bb_count <= bb_to) {
-						vins tmp = vins::ins_add(vreg(17), vreg(16), 99);
-						bb.insert(in, std::move(tmp));
-						tmp = vins::ins_sub(vreg(16), vreg(17), 98);
-						bb.insert(in, std::move(tmp));
-					}
-					++bb_count;
-					in = next;
-				}
-
-				if (std::next(it) == cfg.end())
-					break;
-
-				if (std::next(it)->front().is_data())
-					break;
-				
-				if (std::next(it)->front().is_pseudo() &&
-					std::next(it)->front().operands == "func_entry")
-					break;
+		for (auto in = bb.begin(); in != bb.end();) {
+			if (in->is_pseudo()) {
+				++in;
+				continue;
 			}
+			auto next = std::next(in);
+			if (bb_count >= bb_from && bb_count <= bb_to) {
+				vins tmp = vins::ins_add(vreg(17), vreg(16), 99);
+				bb.insert(in, std::move(tmp));
+				tmp = vins::ins_sub(vreg(16), vreg(17), 98);
+				bb.insert(in, std::move(tmp));
+			}
+			++bb_count;
+			in = next;
 		}
 	}
 
@@ -113,7 +100,7 @@ int main(int argc, char *argv[]) {
 	std::cout << "\nSplit:------------------------------------------\n";
 	for (auto& bb : cfg) {
 		for (auto& in : bb) {
-			std::cout << std::setw(25) << std::setfill('0') << in.addr << ' ' << in << '\n'; //<< "\t(";
+			std::cout << std::hex << in.addr << std::dec << ' ' << in << '\n'; //<< "\t(";
 			//for (vreg r : in.regs) {
 		//		std::cout << r << ' ';
 		//	}
@@ -122,6 +109,16 @@ int main(int argc, char *argv[]) {
 	}
 
 	liveness_analysis(cfg);
+	std::cout << "\nLiveness:------------------------------------------\n";
+	for (auto& bb : cfg) {
+		for (auto& in : bb) {
+			std::cout << in << " (";
+			for (auto r : in.live_regs) {
+				std::cout << r << ' ';
+			}
+			std::cout << ")\n";
+		}
+	}
 
 	for (auto& bb : cfg) {
 		if (bb.is_entry()) {
