@@ -365,8 +365,7 @@ void split_registers(control_flow_graph& cfg) {
 				if (r.num < 0) continue;
 				cfg.reset();
 				std::set<vins*> use_ins, def_ins;
-				def_ins.insert(&*bb.begin());
-				look_use(r, bb, std::next(bb.begin()),
+				look_def(r, bb, std::prev(bb.rend()),
 					def_ins, use_ins);
 				rename(r, -r.num - 1, def_ins, use_ins);
 			}
@@ -382,8 +381,7 @@ void split_registers(control_flow_graph& cfg) {
 				if (r.num < 0) continue;
 				cfg.reset();
 				std::set<vins*> use_ins, def_ins;
-				use_ins.insert(&*bb.rbegin());
-				look_def(r, bb, bb.rbegin(), def_ins, use_ins);
+				look_use(r, bb, std::prev(bb.end()), def_ins, use_ins);
 				rename(r, -r.num - 1, def_ins, use_ins);
 			}
 		}
@@ -398,14 +396,17 @@ void split_registers(control_flow_graph& cfg) {
 					look_use(r, bb, it, def_ins, use_ins);
 					rename(r, -r.num - 1, def_ins, use_ins);
 				}
+			}
+		}
 
+		for (auto it = bb.rbegin(); it != bb.rend(); ++it) {
+			if (it->is_call() && !it->is_local_call()) {
 				for (unsigned i : it->gen) {
 					vreg r = it->regs[i];
 					if (r.num < 0) continue;
 					cfg.reset();
 					std::set<vins*> use_ins, def_ins;
-					def_ins.insert(&*it);
-					look_use(r, bb, std::next(it), def_ins, use_ins);
+					look_def(r, bb, it, def_ins, use_ins);
 					rename(r, -r.num - 1, def_ins, use_ins);
 				}
 			}
@@ -448,23 +449,23 @@ void split_registers(control_flow_graph& cfg) {
 				if (need_virtualized(reg)) {
 					cfg.reset();
 					std::set<vins*> use_ins, def_ins;
-					use_ins.insert(&*it);
 					cfg.reset();
-					look_def(reg, bb, std::reverse_iterator(it),
+					look_use(reg, bb, it,
 				                 def_ins, use_ins);
 					rename(reg, v, def_ins, use_ins);
 					v.num++;
 				}
 			}
+		}
 
+		for (auto it = bb.rbegin(); it != bb.rend(); ++it) {
 			for (unsigned i : it->gen) {
 				vreg reg = it->regs[i];
 				if (need_virtualized(reg)) {
 					cfg.reset();
 					std::set<vins*> use_ins, def_ins;
-					def_ins.insert(&*it);
 					cfg.reset();
-					look_use(reg, bb, std::next(it),
+					look_def(reg, bb, it,
 				                 def_ins, use_ins);
 					rename(reg, v, def_ins, use_ins);
 					v.num++;
