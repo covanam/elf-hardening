@@ -1023,7 +1023,7 @@ static void remove_nops(std::list<vins>& il) {
 	   should be fine to remove them */
 	for (auto i = il.begin(); i != il.end();) {
 		auto next = std::next(i);
-		if (i->mnemonic == "nop" && i->label.empty())
+		if (i->mnemonic.rfind("nop", 0) == 0 && i->label.empty())
 			il.erase(i);
 		i = next;
 	}
