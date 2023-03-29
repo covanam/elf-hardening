@@ -55,39 +55,39 @@ s_utils.o: utils.o ../../../harden
 
 # Dependencies
 test_aes$(DOTEXE): test_aes.o s_aes_encrypt.o s_aes_decrypt.o s_utils.o \
-		../../startup.o ../../stdlib.o
+		../../startup.o ../../stdlib.o ../../second_stack.o
 	$(LD) $(LDFLAGS) $^ -o $@
 
 test_cbc_mode$(DOTEXE): test_cbc_mode.o s_cbc_mode.o \
-		s_aes_encrypt.o s_aes_decrypt.o s_utils.o ../../startup.o ../../stdlib.o
+		s_aes_encrypt.o s_aes_decrypt.o s_utils.o ../../startup.o ../../stdlib.o ../../second_stack.o
 	$(LD) $(LDFLAGS) $^ -o $@
 
 test_ctr_mode$(DOTEXE): test_ctr_mode.o s_ctr_mode.o \
-		s_aes_encrypt.o s_utils.o ../../startup.o ../../stdlib.o
+		s_aes_encrypt.o s_utils.o ../../startup.o ../../stdlib.o ../../second_stack.o
 	$(LD) $(LDFLAGS) $^ -o $@
 
 test_ctr_prng$(DOTEXE): test_ctr_prng.o s_ctr_prng.o \
-		s_aes_encrypt.o s_utils.o ../../startup.o ../../stdlib.o
+		s_aes_encrypt.o s_utils.o ../../startup.o ../../stdlib.o ../../second_stack.o
 	$(LD) $(LDFLAGS) $^ -o $@
 
 test_cmac_mode$(DOTEXE): test_cmac_mode.o s_aes_encrypt.o s_utils.o \
-		s_cmac_mode.o ../../startup.o ../../stdlib.o
+		s_cmac_mode.o ../../startup.o ../../stdlib.o ../../second_stack.o
 	$(LD) $(LDFLAGS) $^ -o $@
 
 test_ccm_mode$(DOTEXE): test_ccm_mode.o s_aes_encrypt.o \
-		s_utils.o s_ccm_mode.o ../../startup.o ../../stdlib.o
+		s_utils.o s_ccm_mode.o ../../startup.o ../../stdlib.o ../../second_stack.o
 	$(LD) $(LDFLAGS) $^ -o $@
 
 test_hmac$(DOTEXE): test_hmac.o s_hmac.o s_sha256.o s_utils.o \
-		../../startup.o ../../stdlib.o
+		../../startup.o ../../stdlib.o ../../second_stack.o
 	$(LD) $(LDFLAGS) $^ -o $@
 
 test_hmac_prng$(DOTEXE): test_hmac_prng.o s_hmac_prng.o s_hmac.o \
-		s_sha256.o s_utils.o ../../startup.o ../../stdlib.o
+		s_sha256.o s_utils.o ../../startup.o ../../stdlib.o ../../second_stack.o
 	$(LD) $(LDFLAGS) $^ -o $@
 
 test_sha256$(DOTEXE): test_sha256.o s_sha256.o s_utils.o \
-		../../startup.o ../../stdlib.o
+		../../startup.o ../../stdlib.o ../../second_stack.o
 	$(LD) $(LDFLAGS) $^ -o $@
 
 test_ecc_dh$(DOTEXE): test_ecc_dh.o s_ecc.o s_ecc_dh.o test_ecc_utils.o s_ecc_platform_specific.o
