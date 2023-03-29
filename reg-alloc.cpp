@@ -512,10 +512,28 @@ static int get_needed_stack(basic_block& bb, int current) {
 			current = n;
 	}
 
+	for (const auto pred : bb.predecessors) {
+		int n = get_needed_stack(*pred, current);
+		if (n > current)
+			current = n;
+	}
+
 	return current;
 }
 
-static void insert_stack_recover(basic_block& bb, int s) {
+control_flow_graph::iterator bb_to_iter(control_flow_graph& cfg, basic_block& bb) {
+	for (auto iter = cfg.begin(); iter != cfg.end(); ++iter) {
+		if (&*iter == &bb)
+			return iter;
+	}
+	assert(0);
+}
+
+static void insert_stack_recover(
+	control_flow_graph& cfg,
+	basic_block& bb,
+	int s
+) {
 	if (bb.visited)
 		return;
 	bb.visited = true;
@@ -544,10 +562,31 @@ static void insert_stack_recover(basic_block& bb, int s) {
 		ret->transfer_label(store_second_stack.front());
 		bb.splice(std::prev(bb.end(), 2), store_second_stack);
 
-		return;
-	} else {
+		for (auto& succ : bb.successors) {
+			basic_block load_second_stack = basic_block({
+				vins::ins_ldr(vreg(12), ".second_stack"),
+				vins::ins_ldr(vreg(12), vreg(12), 0),
+				vins::ins_str(vreg(11), vreg(12), 0),
+				vins::ins_add(vreg(11), vreg(12), s + 4),
+				vins::ins_ldr(vreg(12), ".second_stack"),
+				vins::ins_str(vreg(11), vreg(12), 0)
+			});
+			auto iter = bb_to_iter(cfg, *succ);
+			load_second_stack.predecessors.push_back(&bb);
+			load_second_stack.successors.push_back(&*iter);
+			cfg.insert(iter, std::move(load_second_stack));
+			succ = &*std::prev(iter);
+			for (auto& p : iter->predecessors) {
+				if (p == &bb) {
+					p = succ;
+					break;
+				}
+			}
+		}
+	}
+	{
 		for (auto succ : bb.successors) {
-			insert_stack_recover(*succ, s);
+			insert_stack_recover(cfg, *succ, s);
 		}
 	}
 }
@@ -613,8 +652,7 @@ void spill(control_flow_graph& cfg) {
 
 			bb.splice(std::next(bb.begin()), load_second_stack);
 
-			cfg.reset();
-			insert_stack_recover(bb, s);
+			insert_stack_recover(cfg, bb, s);
 		}
 	}
 
