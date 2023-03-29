@@ -48,6 +48,50 @@ static void rig_forward_flow(
 	}
 }
 
+static void get_unused_variables_interference(
+	basic_block& bb,
+	register_interference_graph& rig
+) {
+	if (bb.visited)
+		return;
+	
+	bb.visited = true;
+
+	for (auto in = bb.begin(); in != bb.end(); ++in) {
+		for (auto reg : in->regs) {
+			if (rig.find(reg) != rig.end())
+				continue;
+
+			std::set<vreg> overwritten;
+
+			if (std::next(in) == bb.end()) {
+				for (auto succ : bb.successors) {
+					overwritten.insert(
+						succ->front().live_regs.begin(),
+						succ->front().live_regs.end());
+				}
+			} else {
+				overwritten = std::next(in)->live_regs;
+			}
+
+			overwritten.insert(reg);
+
+			for (vreg r : overwritten) {
+				rig[r].insert(
+					overwritten.begin(), overwritten.end());
+			}
+		}
+	}
+
+	for (basic_block* succ : bb.successors) {
+		get_unused_variables_interference(*succ, rig);
+	}
+
+	for (basic_block* pred : bb.predecessors) {
+		get_unused_variables_interference(*pred, rig);
+	}
+}
+
 register_interference_graph get_rig(
 	control_flow_graph& cfg,
 	basic_block& entry
@@ -58,31 +102,8 @@ register_interference_graph get_rig(
 
 	rig_forward_flow(entry, rig);
 
-	for (auto& bb : cfg) {
-		/* #TODO: not the entire CFG! */
-		for (auto in = bb.begin(); in != bb.end(); ++in) {
-			for (auto reg : in->regs) {
-				if (rig.find(reg) != rig.end())
-					continue;
-
-				std::set<vreg> overwritten;
-
-				if (std::next(in) == bb.end()) {
-					for (auto succ : bb.successors) {
-						overwritten.insert(
-							succ->front().live_regs.begin(),
-							succ->front().live_regs.end());
-					}
-				} else {
-					overwritten = std::next(in)->live_regs;
-				}
-
-				overwritten.insert(reg);
-
-				rig.insert({reg, overwritten});
-			}
-		}
-	}
+	cfg.reset();
+	get_unused_variables_interference(entry, rig);
 
 	rig.erase(vreg(11));
 	rig.erase(vreg(12));
