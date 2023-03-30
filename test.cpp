@@ -64,7 +64,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	int bb_from = 0;
-	int bb_to = 50;
+	int bb_to = 10;
 	int bb_count = 0;
 
 	for (auto& bb : cfg) {
@@ -79,7 +79,7 @@ int main(int argc, char *argv[]) {
 		}
 
 		for (auto in = bb.begin(); in != bb.end();) {
-			if (in->is_pseudo()) {
+			if (in->is_pseudo() || !in->label.empty()) {
 				++in;
 				continue;
 			}

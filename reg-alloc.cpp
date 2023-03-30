@@ -25,16 +25,6 @@ static void rig_forward_flow(
 				in.live_regs.end()
 			);
 		}
-
-		if (in.gen.size() > 1) {
-			for (unsigned idx : in.gen) {
-				if (rig.find(in.regs[idx]) == rig.end())
-					rig.insert({in.regs[idx], {}});
-				
-				for (unsigned ii : in.gen)
-					rig[in.regs[idx]].insert(in.regs[ii]);
-			}
-		}
 	}
 
 	bb.visited = true;
@@ -92,6 +82,35 @@ static void get_unused_variables_interference(
 	}
 }
 
+static void get_multiple_written_interference(
+	basic_block& bb,
+	register_interference_graph& rig
+) {
+	if (bb.visited)
+		return;
+
+	for (const auto& in : bb) {
+		if (in.gen.size() > 1) {
+			for (unsigned idx : in.gen) {
+				assert(rig.find(in.regs[idx]) != rig.end());
+				
+				for (unsigned ii : in.gen)
+					rig[in.regs[idx]].insert(in.regs[ii]);
+			}
+		}
+	}
+
+	bb.visited = true;
+
+	for (basic_block* succ : bb.successors) {
+		get_multiple_written_interference(*succ, rig);
+	}
+
+	for (basic_block* pred : bb.predecessors) {
+		get_multiple_written_interference(*pred, rig);
+	}
+}
+
 register_interference_graph get_rig(
 	control_flow_graph& cfg,
 	basic_block& entry
@@ -104,6 +123,9 @@ register_interference_graph get_rig(
 
 	cfg.reset();
 	get_unused_variables_interference(entry, rig);
+
+	cfg.reset();
+	get_multiple_written_interference(entry, rig);
 
 	rig.erase(vreg(11));
 	rig.erase(vreg(12));
