@@ -13,8 +13,8 @@ public:
 	int num;
 	int spill_slot;
 
-	vreg(int num) : num(num), spill_slot(-1) {}
-	vreg() : num(-1), spill_slot(-1) {}
+	explicit vreg(int num) : num(num), spill_slot(-1) {}
+	explicit vreg() : num(-1), spill_slot(-1) {}
 
 	static vreg spill(int spill_slot) {
 		vreg r;

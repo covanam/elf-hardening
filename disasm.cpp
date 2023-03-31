@@ -221,44 +221,44 @@ static std::vector<vreg> extract_registers(std::string& operands) {
 		vreg r;
 		if (!operands.compare(i, 3, "r10", 3) ||
 		    !operands.compare(i, 2, "sl", 2))
-			r = 10; 
+			r = vreg(10); 
 		else if (!operands.compare(i, 3, "r11", 3) ||
 		         !operands.compare(i, 2, "fp", 2))
-			r = 11;
+			r = vreg(11);
 		else if (!operands.compare(i, 3, "r12", 3) ||
 		         !operands.compare(i, 2, "ip", 2))
-			r = 12;
+			r = vreg(12);
 		else if (!operands.compare(i, 3, "r13", 3) ||
 		         !operands.compare(i, 2, "sp", 2))
-			r = 13;
+			r = vreg(13);
 		else if (!operands.compare(i, 3, "r14", 3) ||
 		         !operands.compare(i, 2, "lr", 2))
-			r = 14;
+			r = vreg(14);
 		else if (!operands.compare(i, 3, "r15", 3) ||
 		         !operands.compare(i, 2, "pc", 2))
-			r = 15;
+			r = vreg(15);
 		else if (!operands.compare(i, 2, "r0", 2))
-			r = 0;
+			r = vreg(0);
 		else if (!operands.compare(i, 2, "r1", 2))
-			r = 1;
+			r = vreg(1);
 		else if (!operands.compare(i, 2, "r2", 2))
-			r = 2;
+			r = vreg(2);
 		else if (!operands.compare(i, 2, "r3", 2))
-			r = 3;
+			r = vreg(3);
 		else if (!operands.compare(i, 2, "r4", 2))
-			r = 4;
+			r = vreg(4);
 		else if (!operands.compare(i, 2, "r5", 2))
-			r = 5;
+			r = vreg(5);
 		else if (!operands.compare(i, 2, "r6", 2))
-			r = 6;
+			r = vreg(6);
 		else if (!operands.compare(i, 2, "r7", 2))
-			r = 7;
+			r = vreg(7);
 		else if (!operands.compare(i, 2, "r8", 2))
-			r = 8;
+			r = vreg(8);
 		else if (!operands.compare(i, 2, "r9", 2) ||
 			 !operands.compare(i, 2, "sb", 2) ||
 			 !operands.compare(i, 2, "tr", 2))
-			r = 9;
+			r = vreg(9);
 		else continue;
 
 		if (i && 'a' <= operands[i - 1] && operands[i - 1] <= 'z')
@@ -631,7 +631,7 @@ vins vins::ins_return() {
 	in._is_jump = true;
 	in._can_fall_through = false;
 	in._size = 0;
-	in.regs = {14, 15};
+	in.regs = {vreg(14), vreg(15)};
 	in.use = {0};
 	in.gen = {1};
 
@@ -728,7 +728,9 @@ vins vins::function_entry() {
 	in.mnemonic = "pseudo";
 	in.operands = "func_entry";
 
-	in.regs = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15};
+	in.regs = {vreg(0), vreg(1), vreg(2), vreg(3), vreg(4), vreg(5), vreg(6),
+		vreg(7), vreg(8), vreg(9), vreg(10), vreg(11), vreg(13), vreg(14),
+		vreg(15)};
 	in.gen = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14};
 
 	in._is_call = false;
@@ -744,7 +746,9 @@ vins vins::function_exit() {
 	in.mnemonic = "pseudo";
 	in.operands = "func_exit";
 
-	in.regs = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 14, 15};
+	in.regs = {vreg(0), vreg(1), vreg(2), vreg(3), vreg(4), vreg(5), vreg(6),
+		vreg(7), vreg(8), vreg(9), vreg(10), vreg(11), vreg(13), vreg(14),
+		vreg(15)};
 	in.use = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14};
 
 	in._is_call = false;
@@ -1228,7 +1232,8 @@ void lifter::get_function_name() {
 static void add_call_registers(std::list<vins>& instructions) {
 	for (auto& in : instructions) {
 		if (in.is_call() && !in.is_local_call()) {
-			in.regs = {0, 1, 2, 3, 0, 1, 2, 3};
+			in.regs = {vreg(0), vreg(1), vreg(2), vreg(3), vreg(0),
+				vreg(1), vreg(2), vreg(3)};
 			in.use = {0, 1, 2, 3};
 			in.gen = {4, 5, 6, 7};
 		}

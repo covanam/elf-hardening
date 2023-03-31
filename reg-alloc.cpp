@@ -281,10 +281,10 @@ std::map<vreg, vreg> register_allocate(
 				}
 			}
 			assert(available.begin() != available.end());
-			allocation.insert({r->first, *--available.end()});
+			allocation.insert({r->first, vreg(*--available.end())});
 		}
 		else {
-			allocation.insert({r->first, 14});
+			allocation.insert({r->first, vreg(14)});
 		}
 	}
 
@@ -391,7 +391,7 @@ static void rename(vreg from, vreg to, std::set<vins*>& def, std::set<vins*>& us
 static bool need_virtualized(vreg reg) {
 	// anything between r0-r11
 	// #TODO: r14(lr) and r12(ip) can be used too
-	return reg >= vreg(0) && reg <= vreg(11) || reg >= 16 && reg < 32;
+	return reg >= vreg(0) && reg <= vreg(11) || reg.num >= 16 && reg.num < 32;
 }
 
 void split_registers(control_flow_graph& cfg) {
@@ -405,7 +405,7 @@ void split_registers(control_flow_graph& cfg) {
 				std::set<vins*> use_ins, def_ins;
 				look_def(r, bb, std::prev(bb.rend()),
 					def_ins, use_ins);
-				rename(r, -r.num - 1, def_ins, use_ins);
+				rename(r, vreg::spill(r.num), def_ins, use_ins);
 			}
 		}
 	}
@@ -420,7 +420,7 @@ void split_registers(control_flow_graph& cfg) {
 				cfg.reset();
 				std::set<vins*> use_ins, def_ins;
 				look_use(r, bb, std::prev(bb.end()), def_ins, use_ins);
-				rename(r, -r.num - 1, def_ins, use_ins);
+				rename(r, vreg::spill(r.num), def_ins, use_ins);
 			}
 		}
 
@@ -432,7 +432,7 @@ void split_registers(control_flow_graph& cfg) {
 					cfg.reset();
 					std::set<vins*> use_ins, def_ins;
 					look_use(r, bb, it, def_ins, use_ins);
-					rename(r, -r.num - 1, def_ins, use_ins);
+					rename(r, vreg::spill(r.num), def_ins, use_ins);
 				}
 			}
 		}
@@ -445,7 +445,7 @@ void split_registers(control_flow_graph& cfg) {
 					cfg.reset();
 					std::set<vins*> use_ins, def_ins;
 					look_def(r, bb, it, def_ins, use_ins);
-					rename(r, -r.num - 1, def_ins, use_ins);
+					rename(r, vreg::spill(r.num), def_ins, use_ins);
 				}
 			}
 		}
@@ -458,7 +458,7 @@ void split_registers(control_flow_graph& cfg) {
 					cfg.reset();
 					std::set<vins*> use_ins, def_ins;
 					look_use(r, bb, it, def_ins, use_ins);
-					rename(r, -r.num - 1, def_ins, use_ins);
+					rename(r, vreg::spill(r.num), def_ins, use_ins);
 				}
 			}
 		}
@@ -471,7 +471,7 @@ void split_registers(control_flow_graph& cfg) {
 					cfg.reset();
 					std::set<vins*> use_ins, def_ins;
 					look_def(r, bb, it, def_ins, use_ins);
-					rename(r, -r.num - 1, def_ins, use_ins);
+					rename(r, vreg(r.num), def_ins, use_ins);
 				}
 			}
 		}
@@ -515,8 +515,8 @@ void split_registers(control_flow_graph& cfg) {
 	for (auto& bb : cfg) {
 		for (auto& in : bb) {
 			for (vreg& r : in.regs) {
-				if (r.num < 0)
-					r.num = -r.num - 1;
+				if (r.spill_slot >= 0)
+					r = vreg(r.spill_slot);
 			}
 		}
 	}
@@ -751,8 +751,8 @@ void spill(control_flow_graph& cfg) {
 
 			for (unsigned i : in->use) {
 				if (in->regs[i].spill_slot >= 0) {
-					vreg r = reg_map.at(in->regs[i].spill_slot);
-					vins tmp = vins::ins_ldr(r, 11, - 4 - 4 * in->regs[i].spill_slot);
+					vreg r = vreg(reg_map.at(in->regs[i].spill_slot));
+					vins tmp = vins::ins_ldr(r, vreg(11), - 4 - 4 * in->regs[i].spill_slot);
 					in->transfer_label(tmp);
 					bb.insert(in, std::move(tmp));
 				}
@@ -774,9 +774,9 @@ void spill(control_flow_graph& cfg) {
 						assert(0);
 					}
 				}
-				if (in->regs[i] < 0) {
-					vreg r = reg_map.at(in->regs[i].spill_slot);
-					vins tmp = vins::ins_str(r, 11, -4 - 4 * in->regs[i].spill_slot);
+				if (in->regs[i].spill_slot >= 0) {
+					vreg r = vreg(reg_map.at(in->regs[i].spill_slot));
+					vins tmp = vins::ins_str(r, vreg(11), -4 - 4 * in->regs[i].spill_slot);
 					bb.insert(std::next(in), std::move(tmp));
 				}
 			}

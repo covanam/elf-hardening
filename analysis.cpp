@@ -45,14 +45,14 @@ static int get_stack_change(const vins& in) {
 		return 0;
 
 	for (int i : in.gen) {
-		if (in.regs[i] == 13) {
+		if (in.regs[i] == vreg(13)) {
 			if (in.mnemonic.rfind("add", 0) == 0) {
 				if (in.use.size() != 1) {
 					std::stringstream ss;
 					ss << in;
 					throw stack_analysis_failure(ss.str());
 				}
-				if (in.regs[in.use[0]] == 13) {
+				if (in.regs[in.use[0]] == vreg(13)) {
 					return in.imm();
 				}
 			} else if (in.mnemonic.rfind("sub", 0) == 0) {
@@ -61,7 +61,7 @@ static int get_stack_change(const vins& in) {
 					ss << in;
 					throw stack_analysis_failure(ss.str());
 				}
-				if (in.regs[in.use[0]] == 13) {
+				if (in.regs[in.use[0]] == vreg(13)) {
 					return -in.imm();
 				}
 			} else if (in.mnemonic.rfind("ldr", 0) == 0) {

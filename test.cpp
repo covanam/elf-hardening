@@ -72,9 +72,9 @@ int main(int argc, char *argv[]) {
 			continue;
 
 		if (lift.functions.find(bb.front().label) != lift.functions.end()) {
-			vins tmp = vins::ins_mov(17, 321);
+			vins tmp = vins::ins_mov(vreg(17), 321);
 			bb.insert(std::next(bb.begin()), std::move(tmp));
-			tmp = vins::ins_mov(18, 123);
+			tmp = vins::ins_mov(vreg(18), 123);
 			bb.insert(std::next(bb.begin()), std::move(tmp));
 		}
 
