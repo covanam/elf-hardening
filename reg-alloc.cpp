@@ -194,7 +194,7 @@ std::map<vreg, int> register_allocate(
 	register_interference_graph rig = get_rig(cfg, entry);
 
 	std::list<std::pair<vreg, std::set<vreg>>> stack;
-	std::vector<vreg> spilled_regs;
+	std::list<std::pair<vreg, std::set<vreg>>> spilled_regs;
 
 	while (true) {
 		register_interference_graph temp = rig;
@@ -230,11 +230,11 @@ std::map<vreg, int> register_allocate(
 					spilled = r.first;
 				}
 			}
+			spilled_regs.push_back({spilled, rig[spilled]});
 			rig.erase(spilled);
 			for (auto& r : rig) {
 				r.second.erase(spilled);
 			}
-			spilled_regs.push_back(spilled);
 		} else {
 			break;
 		}
@@ -242,10 +242,26 @@ std::map<vreg, int> register_allocate(
 
 	std::map<vreg, int> allocation;
 
-	int i = -1;
-	for (vreg spilled : spilled_regs) {
-		allocation.insert({spilled, i});
-		--i;
+	for (auto s = spilled_regs.rbegin(); s != spilled_regs.rend(); ++s) {
+		int i = -1;
+		bool conflict;
+
+		do {
+			conflict = false;
+			for (auto r : s->second) {
+				auto a = allocation.find(r);
+				if (a == allocation.end())
+					continue;
+				
+				if (a->second == i) {
+					conflict = true;
+					--i;
+					break;
+				}
+			}
+		} while (conflict);
+
+		allocation.insert({s->first, i});
 	}
 
 	for (auto r = stack.rbegin(); r != stack.rend(); r++) {
