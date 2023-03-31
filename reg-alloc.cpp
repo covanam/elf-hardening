@@ -143,8 +143,8 @@ register_interference_graph get_rig(
 	return rig;
 }
 
-static int spill_forward_flow(basic_block& bb, vreg reg) {
-	int cost = 0;
+static float usage_count_forward_flow(basic_block& bb, vreg reg) {
+	float cost = 0;
 	if (bb.visited)
 		return 0;
 
@@ -160,23 +160,23 @@ static int spill_forward_flow(basic_block& bb, vreg reg) {
 	bb.visited = true;
 
 	for (basic_block* succ : bb.successors) {
-		cost += spill_forward_flow(*succ, reg);
+		cost += usage_count_forward_flow(*succ, reg);
 	}
 
 	return cost;
 }
 
-int spilling_cost(
+float usage_count(
 	control_flow_graph& cfg,
 	basic_block& entry,
 	vreg reg
 ) {
 	if (reg.num < 16)
-		return std::numeric_limits<int>::max();
+		return std::numeric_limits<float>::max();
 
 	cfg.reset();
 
-	return spill_forward_flow(entry, reg);
+	return usage_count_forward_flow(entry, reg);
 }
 
 static bool done_removing(const register_interference_graph& rig) {
@@ -221,10 +221,10 @@ std::map<vreg, int> register_allocate(
 		}
 
 		if (!done_removing(temp)) {
-			int min_cost = std::numeric_limits<int>::max();
+			float min_cost = std::numeric_limits<float>::max();
 			vreg spilled;
 			for (const auto& r : temp) {
-				int cost = spilling_cost(cfg, entry, r.first);
+				float cost = usage_count(cfg, entry, r.first) / r.second.size();
 				if (cost < min_cost) {
 					min_cost = cost;
 					spilled = r.first;
