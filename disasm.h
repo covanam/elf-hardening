@@ -11,8 +11,18 @@
 class vreg {
 public:
 	int num;
-	vreg(int num) : num(num) {}
-	vreg() : num(-1) {}
+	int spill_slot;
+
+	vreg(int num) : num(num), spill_slot(-1) {}
+	vreg() : num(-1), spill_slot(-1) {}
+
+	static vreg spill(int spill_slot) {
+		vreg r;
+		r.num = -1;
+		r.spill_slot = spill_slot;
+		return r;
+	}
+
 	friend std::ostream& operator<<(std::ostream& os, vreg r);
 
 	friend bool operator<(const vreg l, const vreg r) {

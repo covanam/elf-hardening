@@ -187,7 +187,7 @@ static bool done_removing(const register_interference_graph& rig) {
 	return true;
 }
 
-std::map<vreg, int> register_allocate(
+std::map<vreg, vreg> register_allocate(
 	control_flow_graph& cfg,
 	basic_block& entry
 ) {
@@ -240,10 +240,10 @@ std::map<vreg, int> register_allocate(
 		}
 	}
 
-	std::map<vreg, int> allocation;
+	std::map<vreg, vreg> allocation;
 
 	for (auto s = spilled_regs.rbegin(); s != spilled_regs.rend(); ++s) {
-		int i = -1;
+		int i = 0;
 		bool conflict;
 
 		do {
@@ -253,15 +253,15 @@ std::map<vreg, int> register_allocate(
 				if (a == allocation.end())
 					continue;
 				
-				if (a->second == i) {
+				if (a->second.spill_slot == i) {
 					conflict = true;
-					--i;
+					++i;
 					break;
 				}
 			}
 		} while (conflict);
 
-		allocation.insert({s->first, i});
+		allocation.insert({s->first, vreg::spill(i)});
 	}
 
 	for (auto r = stack.rbegin(); r != stack.rend(); r++) {
@@ -270,7 +270,7 @@ std::map<vreg, int> register_allocate(
 			for (auto i : r->second) {
 				auto allocated = allocation.find(i);
 				if (allocated != allocation.end()) {
-					available.erase(allocated->second);
+					available.erase(allocated->second.num);
 				}
 				else if (i.num == r->first.num) {
 					// pass
@@ -540,8 +540,8 @@ static int get_needed_stack(basic_block& bb, int current) {
 
 	for (const auto& in : bb) {
 		for (const auto reg : in.regs) {
-			if (-4 * reg.num > current)
-				current = -4 * reg.num;
+			if (4 * reg.spill_slot + 4 > current)
+				current = 4 * reg.spill_slot + 4;
 		}
 	}
 
@@ -703,8 +703,8 @@ void spill(control_flow_graph& cfg) {
 			std::map<int, int> reg_map;
 
 			for (vreg r : in->regs) {
-				if (r.num < 0)
-					reg_map.insert({r.num, -1});
+				if (r.spill_slot >= 0)
+					reg_map.insert({r.spill_slot, -1});
 			}
 
 			if (reg_map.size() == 0)
@@ -750,9 +750,9 @@ void spill(control_flow_graph& cfg) {
 			}
 
 			for (unsigned i : in->use) {
-				if (in->regs[i] < 0) {
-					vreg r = reg_map.at(in->regs[i].num);
-					vins tmp = vins::ins_ldr(r, 11, 4 * in->regs[i].num);
+				if (in->regs[i].spill_slot >= 0) {
+					vreg r = reg_map.at(in->regs[i].spill_slot);
+					vins tmp = vins::ins_ldr(r, 11, - 4 - 4 * in->regs[i].spill_slot);
 					in->transfer_label(tmp);
 					bb.insert(in, std::move(tmp));
 				}
@@ -775,15 +775,15 @@ void spill(control_flow_graph& cfg) {
 					}
 				}
 				if (in->regs[i] < 0) {
-					vreg r = reg_map.at(in->regs[i].num);
-					vins tmp = vins::ins_str(r, 11, 4 * in->regs[i].num);
+					vreg r = reg_map.at(in->regs[i].spill_slot);
+					vins tmp = vins::ins_str(r, 11, -4 - 4 * in->regs[i].spill_slot);
 					bb.insert(std::next(in), std::move(tmp));
 				}
 			}
 
 			for (vreg& r : in->regs) {
-				if (r.num < 0) {
-					r.num = reg_map.at(r.num);
+				if (r.spill_slot >= 0) {
+					r.num = reg_map.at(r.spill_slot);
 				}
 			}
 		}
@@ -791,6 +791,11 @@ void spill(control_flow_graph& cfg) {
 }
 
 static void apply_allocate(basic_block& bb, std::map<vreg, int>& replace_map) {
+	if (bb.visited)
+		return;
+	
+	bb.visited = true;
+
 	for (vins& in : bb) {
 		for (vreg& reg : in.regs) {
 			auto f = replace_map.find(reg);

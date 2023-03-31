@@ -12,7 +12,7 @@ int fastrand() {
 	return (g_seed>>16)&0x7FFF; 
 }
 
-static void replace_reg(basic_block& bb, std::map<vreg, int>& replace_map) {
+static void replace_reg(basic_block& bb, std::map<vreg, vreg>& replace_map) {
 	if (bb.visited)
 		return;
 
@@ -20,7 +20,7 @@ static void replace_reg(basic_block& bb, std::map<vreg, int>& replace_map) {
 		for (vreg& reg : in.regs) {
 			auto f = replace_map.find(reg);
 			if (f != replace_map.end()) {
-				reg.num = f->second;
+				reg = f->second;
 			}
 		}
 	}
@@ -122,7 +122,7 @@ int main(int argc, char *argv[]) {
 
 	for (auto& bb : cfg) {
 		if (bb.is_entry()) {
-			std::map<vreg, int> alloc = register_allocate(cfg, bb);
+			std::map<vreg, vreg> alloc = register_allocate(cfg, bb);
 
 			cfg.reset();
 			replace_reg(bb, alloc);
