@@ -132,7 +132,7 @@ int main(int argc, char *argv[]) {
 	std::cout << "\nAllocate:--------------------------\n";
 	for (auto& bb : cfg) {
 		for (auto& in : bb) {
-			std::cout << std::setw(25) << std::setfill('0') << in.addr << ' ' << in << '\n';
+			std::cout << std::hex << in.addr << std::dec << ' ' << in << '\n';
 		}
 	}
 
@@ -141,7 +141,7 @@ int main(int argc, char *argv[]) {
 	std::cout << "\nSpilled:--------------------------\n";
 	for (auto& bb : cfg) {
 		for (auto& in : bb) {
-			std::cout << std::setw(25) << std::setfill('0') << in.addr << ' ' << in << '\n';;
+			std::cout << std::hex << in.addr << std::dec << ' ' << in << '\n';;
 		}
 	}
 	
