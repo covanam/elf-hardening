@@ -743,6 +743,21 @@ void spill(control_flow_graph& cfg) {
 			}
 
 			for (unsigned i : in->gen) {
+				if (in->is_jump()) {
+					if (in->mnemonic.rfind("pop", 0) == 0) {
+						for (vreg& r : in->regs) {
+							if (r.num == 15) { // pc
+								r.num = 14; // lr
+
+								vins tmp = vins::ins_return();
+								bb.insert(std::next(in), std::move(tmp));
+							}
+						}
+					}
+					else {
+						assert(0);
+					}
+				}
 				if (in->regs[i] < 0) {
 					vreg r = reg_map.at(in->regs[i].num);
 					vins tmp = vins::ins_str(r, 11, 4 * in->regs[i].num);
