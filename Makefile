@@ -30,5 +30,8 @@ test_alloc: disasm.o cfg.o analysis.o reg-alloc.o test_alloc.cpp
 test_stack: disasm.o cfg.o analysis.o test_stack.cpp
 	g++ $^ $(CXXFLAGS) -o harden
 
+test_asm: test_asm.cpp
+	g++ $^ $(CXXFLAGS) -o test_asm
+
 clean:
 	rm *.o harden
