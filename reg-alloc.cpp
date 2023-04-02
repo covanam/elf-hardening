@@ -420,49 +420,6 @@ void split_registers(control_flow_graph& cfg) {
 				look_def(r, bb, std::prev(bb.rend()),
 					def_ins, use_ins);
 
-				bool only_pseudo = true;
-				for (vins* in : use_ins) {
-					if (in->is_pseudo() == false) {
-						only_pseudo = false;
-					}
-				}
-				for (vins* in : def_ins) {
-					if (in->is_pseudo() == false) {
-						only_pseudo = false;
-					}
-				}
-
-				if (only_pseudo && r.num <= 10) {
-					for (vins* in : use_ins) {
-						auto& bb = find_bb_containing_vins(cfg, in);
-
-						auto ret = std::prev(bb.end(), 2);
-						assert(ret->is_function_return());
-
-						for (vreg& r : ret->regs) {
-							if (r.num == 15) { // pc
-								r.num = 14; // lr
-
-								vins tmp = vins::ins_return();
-								bb.insert(std::prev(bb.end()), std::move(tmp));
-							}
-						}
-
-						ret = std::prev(bb.end(), 2);
-						assert(ret->is_function_return());
-						vins tmp = vins::ins_mov(vreg::spill(r.num), v);
-						ret->transfer_label(tmp);
-						bb.insert(ret, tmp);
-					}
-					for (vins* in : def_ins) {
-						auto& bb = find_bb_containing_vins(cfg, in);
-						vins tmp = vins::ins_mov(v, vreg::spill(r.num));
-						bb.insert(std::next(bb.begin()), tmp);
-						assert(bb.begin()->is_pseudo());
-					}
-					v.num++;
-				}
-
 				rename(r, vreg::spill(r.num), def_ins, use_ins);
 			}
 		}
