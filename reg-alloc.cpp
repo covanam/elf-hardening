@@ -171,9 +171,6 @@ float usage_count(
 	basic_block& entry,
 	vreg reg
 ) {
-	if (reg.num < 16)
-		return std::numeric_limits<float>::max();
-
 	cfg.reset();
 
 	return usage_count_forward_flow(entry, reg);
@@ -261,7 +258,10 @@ std::map<vreg, vreg> register_allocate(
 			}
 		} while (conflict);
 
-		allocation.insert({s->first, vreg::spill(i)});
+		if (s->first.num < 16)
+			allocation.insert({s->first, vreg::spill(i, s->first.num)});
+		else
+			allocation.insert({s->first, vreg::spill(i)});
 	}
 
 	for (auto r = stack.rbegin(); r != stack.rend(); r++) {
@@ -584,12 +584,12 @@ void split_registers(control_flow_graph& cfg) {
 	}
 }
 
-static std::vector<vreg> find_free_reg(const vins& in) {
-	std::vector<vreg> free_reg;
+static std::set<vreg> find_free_reg(const vins& in) {
+	std::set<vreg> free_reg;
 	for (int i = 0; i < 11; ++i) {
 		auto tmp = in.live_regs.find(vreg(i));
 		if (tmp == in.live_regs.end())
-			free_reg.push_back(vreg(i));
+			free_reg.insert(vreg(i));
 	}
 	return free_reg;
 }
@@ -766,16 +766,26 @@ void spill(control_flow_graph& cfg) {
 
 			for (vreg r : in->regs) {
 				if (r.spill_slot >= 0)
-					reg_map.insert({r.spill_slot, -1});
+					reg_map.insert({r.spill_slot, r.num});
 			}
 
 			if (reg_map.size() == 0)
 				continue;
 			
-			std::vector<vreg> free_regs = find_free_reg(*in);
+			std::set<vreg> free_regs = find_free_reg(*in);
+
+			std::vector<vreg> to_stack;
+
+			for (const auto& rm : reg_map) {
+				if (rm.second >= 0) {
+					if (free_regs.find(vreg(rm.second)) == free_regs.end()) {
+						to_stack.push_back(vreg(rm.second));
+						free_regs.insert(vreg(rm.second));
+					}
+				}
+			}
 
 			int need = reg_map.size() - free_regs.size();
-			std::vector<vreg> to_stack;
 
 			if (need > 0) {
 				auto l = in->live_regs.begin();
@@ -783,7 +793,8 @@ void spill(control_flow_graph& cfg) {
 					while (l != in->live_regs.end() &&
 					       !(0 <= l->num && l->num < 11) ||
 					       std::find(in->regs.begin(), in->regs.end(), *l)
-					         != in->regs.end()
+					         != in->regs.end() ||
+					       free_regs.find(*l) != free_regs.end()
 					       ) {
 						++l;
 					}
@@ -798,19 +809,39 @@ void spill(control_flow_graph& cfg) {
 				in->transfer_label(push_ins);
 				bb.insert(in, std::move(push_ins));
 				bb.insert(std::next(in), vins::pop(to_stack));
-				free_regs.insert(free_regs.end(), to_stack.begin(), to_stack.end());
+				free_regs.insert(to_stack.begin(), to_stack.end());
 
 				fix_stack_reference(*in, to_stack.size() * 4);
 			}
 
 			assert(free_regs.size() >= reg_map.size());
 
-			int free_regs_idx = 0;
 			for (auto& m : reg_map) {
-				m.second = free_regs[free_regs_idx].num;
+				if (m.second >= 0) {
+					free_regs.erase(vreg(m.second));
+				}
+			}
+
+			auto free_regs_idx = free_regs.begin();
+			for (auto& m : reg_map) {
+				if (m.second >= 0)
+					continue;
+				m.second = free_regs_idx->num;
 				free_regs_idx++;
 			}
 
+			if (in->is_pseudo()) {
+				for (unsigned i : in->use) {
+					if (in->regs[i].spill_slot >= 0) {
+						vreg r = vreg(reg_map.at(in->regs[i].spill_slot));
+						vins tmp = vins::ins_ldr(r, vreg(11), - 4 - 4 * in->regs[i].spill_slot);
+						std::prev(in)->transfer_label(tmp);
+						bb.insert(std::prev(in), std::move(tmp));
+						assert(std::prev(in)->is_function_return());
+					}
+				}
+			}
+			else
 			for (unsigned i : in->use) {
 				if (in->regs[i].spill_slot >= 0) {
 					vreg r = vreg(reg_map.at(in->regs[i].spill_slot));

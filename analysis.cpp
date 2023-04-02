@@ -9,9 +9,11 @@ static void reverse_flow(basic_block& current, std::set<vreg> live_regs) {
 	for (auto i = current.rbegin(); i != current.rend(); ++i) {
 		if (i->cond.empty())
 			for (int j : i->gen)
-				live_regs.erase(i->regs[j]);
+				if (i->regs[j].spill_slot < 0)
+					live_regs.erase(i->regs[j]);
 		for (int j : i->use)
-			live_regs.insert(i->regs[j]);
+			if (i->regs[j].spill_slot < 0)
+				live_regs.insert(i->regs[j]);
 		
 		int before = i->live_regs.size();
 
