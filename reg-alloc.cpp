@@ -863,9 +863,6 @@ void spill(control_flow_graph& cfg) {
 							}
 						}
 					}
-					else {
-						assert(0);
-					}
 				}
 				if (in->regs[i].spill_slot >= 0) {
 					vreg r = vreg(reg_map.at(in->regs[i].spill_slot));
