@@ -451,7 +451,9 @@ void split_registers(control_flow_graph& cfg) {
 		}
 
 		for (auto it = bb.begin(); it != bb.end(); ++it) {
-			if (it->mnemonic.rfind("stm", 0) == 0) {
+			if (it->mnemonic.rfind("stm", 0) == 0 ||
+			    it->mnemonic.rfind("push", 0) == 0
+			) {
 				for (unsigned i : it->use) {
 					vreg r = it->regs[i];
 					if (r.num < 0) continue;
@@ -464,14 +466,16 @@ void split_registers(control_flow_graph& cfg) {
 		}
 
 		for (auto it = bb.rbegin(); it != bb.rend(); ++it) {
-			if (it->mnemonic.rfind("ldm", 0) == 0) {
+			if (it->mnemonic.rfind("ldm", 0) == 0 ||
+			    it->mnemonic.rfind("pop", 0) == 0
+			) {
 				for (unsigned i : it->gen) {
 					vreg r = it->regs[i];
 					if (r.num < 0) continue;
 					cfg.reset();
 					std::set<vins*> use_ins, def_ins;
 					look_def(r, bb, it, def_ins, use_ins);
-					rename(r, vreg(r.num), def_ins, use_ins);
+					rename(r, vreg::spill(r.num), def_ins, use_ins);
 				}
 			}
 		}
