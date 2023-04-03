@@ -23,13 +23,6 @@ public:
 		return r;
 	}
 
-	static vreg spill(int spill_slot, int num) {
-		vreg r;
-		r.num = num;
-		r.spill_slot = spill_slot;
-		return r;
-	}
-
 	friend std::ostream& operator<<(std::ostream& os, vreg r);
 
 	friend bool operator<(const vreg l, const vreg r) {
