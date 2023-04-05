@@ -74,8 +74,6 @@ int main(int argc, char *argv[]) {
 		if (lift.functions.find(bb.front().label) != lift.functions.end()) {
 			vins tmp = vins::ins_mov(vreg(17), 321);
 			bb.insert(std::next(bb.begin()), std::move(tmp));
-			tmp = vins::ins_mov(vreg(18), 123);
-			bb.insert(std::next(bb.begin()), std::move(tmp));
 		}
 
 		for (auto in = bb.begin(); in != bb.end();) {
@@ -85,9 +83,7 @@ int main(int argc, char *argv[]) {
 			}
 			auto next = std::next(in);
 			if (bb_count >= bb_from && bb_count <= bb_to) {
-				vins tmp = vins::ins_add(vreg(17), vreg(16), 99);
-				bb.insert(in, std::move(tmp));
-				tmp = vins::ins_sub(vreg(16), vreg(17), 98);
+				vins tmp = vins::ins_add(vreg(17), vreg(17), 99);
 				bb.insert(in, std::move(tmp));
 			}
 			++bb_count;

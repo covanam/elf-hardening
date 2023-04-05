@@ -171,7 +171,7 @@ float usage_count(
 	basic_block& entry,
 	vreg reg
 ) {
-	if (reg.num < 16)
+	if (reg.num < 4)
 		return std::numeric_limits<float>::max();
 
 	cfg.reset();
@@ -261,7 +261,10 @@ std::map<vreg, vreg> register_allocate(
 			}
 		} while (conflict);
 
-		allocation.insert({s->first, vreg::spill(i)});
+		if (s->first.num < 16)
+			allocation.insert({s->first, vreg::spill(i, s->first.num)});
+		else
+			allocation.insert({s->first, vreg::spill(i)});
 	}
 
 	for (auto r = stack.rbegin(); r != stack.rend(); r++) {
@@ -676,10 +679,6 @@ void spill(control_flow_graph& cfg) {
 		}
 	}
 
-	cfg.reset();
-
-	liveness_analysis(cfg);
-
 	std::map<basic_block*, int> stack_reserve;
 
 	cfg.reset();
@@ -691,6 +690,73 @@ void spill(control_flow_graph& cfg) {
 			stack_reserve.insert({&bb, s});
 		}
 	}
+
+	for (auto& bb : cfg) {
+		for (auto in = bb.begin(); in != bb.end(); ++in) {
+			std::vector<vreg> regs;
+			std::vector<vreg> use_regs;
+			std::vector<vreg> def_regs;
+			for (unsigned i : in->use) {
+				if (in->regs[i].spill_slot >= 0 && in->regs[i].num >= 0) {
+					use_regs.push_back(in->regs[i]);
+					regs.push_back(vreg(in->regs[i].num));
+					in->regs[i] = vreg(in->regs[i].num);
+				}
+			}
+			for (unsigned i : in->gen) {
+				if (in->regs[i].spill_slot >= 0 && in->regs[i].num >= 0) {
+					def_regs.push_back(in->regs[i]);
+					regs.push_back(vreg(in->regs[i].num));
+					in->regs[i] = vreg(in->regs[i].num);
+				}
+			}
+
+			if (in->is_pseudo() && in->operands == "func_entry") {
+				assert(use_regs.empty());
+				auto pos = std::next(in);
+				for (vreg r : def_regs) {
+					vins tmp = vins::ins_str(vreg(r.num), vreg(11), -4 - 4 * r.spill_slot);
+					bb.insert(pos, std::move(tmp));
+				}
+			}
+			else if (in->is_pseudo() && in->operands == "func_exit") {
+				assert(def_regs.empty());
+				auto pos = std::prev(in);
+				for (auto& ngu : bb) {
+				}
+				assert(pos->is_function_return());
+				for (vreg r : use_regs) {
+					vins tmp = vins::ins_ldr(vreg(r.num), vreg(11), -4 - 4 * r.spill_slot);
+					pos->transfer_label(tmp);
+					bb.insert(pos, std::move(tmp));
+				}
+			}
+			else {
+				vins tmp;
+				if (regs.size()) {
+					tmp = vins::push(regs);
+					in->transfer_label(tmp);
+					bb.insert(in, std::move(tmp));
+				}
+				for (vreg r : use_regs) {
+					tmp = vins::ins_ldr(vreg(r.num), vreg(11), -4 - 4 * r.spill_slot);
+					bb.insert(in, std::move(tmp));
+				}
+				auto pos = std::next(in);
+				for (vreg r : def_regs) {
+					tmp = vins::ins_ldr(vreg(r.num), vreg(11), -4 - 4 * r.spill_slot);
+					bb.insert(pos, std::move(tmp));
+				}
+				if (regs.size()) {
+					tmp = vins::pop(regs);
+					bb.insert(pos, std::move(tmp));
+				}
+			}
+		}
+	}
+
+	cfg.reset();
+	liveness_analysis(cfg);
 
 	cfg.reset();
 
