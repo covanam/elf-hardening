@@ -680,18 +680,24 @@ vins vins::data_word(int data) {
 }
 
 
-template<class list> vins vins::push(const list& regs) {
+template<class list> vins vins::push_second_stack(const list& regs) {
 	vins in;
 	in.addr = std::numeric_limits<uint64_t>::max();
-	in.mnemonic = "push";
-	in.operands = "{";
-	std::stringstream ss;
-	ss << '{' << *regs.begin();
-	for (auto r = std::next(regs.begin()); r != regs.end(); ++r) {
-		ss << ", " << *r;
+
+	if (regs.size() == 1) {
+		in.mnemonic = "str";
+		in.operands = "%0, [fp], #4";
 	}
-	ss << '}';
-	in.operands = ss.str();
+	else {
+		in.mnemonic = "stmia";
+		std::stringstream ss;
+		ss << "fp!, {" << *regs.begin();
+		for (auto r = std::next(regs.begin()); r != regs.end(); ++r) {
+			ss << ", " << *r;
+		}
+		ss << '}';
+		in.operands = ss.str();
+	}
 
 	in._is_call = false;
 	in._is_jump = false;
@@ -704,18 +710,24 @@ template<class list> vins vins::push(const list& regs) {
 	return in;
 }
 
-template<class list> vins vins::pop(const list& regs) {
+template<class list> vins vins::pop_second_stack(const list& regs) {
 	vins in;
 	in.addr = std::numeric_limits<uint64_t>::max();
-	in.mnemonic = "pop";
-	in.operands = "{";
-	std::stringstream ss;
-	ss << '{' << *regs.begin();
-	for (auto r = std::next(regs.begin()); r != regs.end(); ++r) {
-		ss << ", " << *r;
+
+	if (regs.size() == 1) {
+		in.mnemonic = "ldr";
+		in.operands = "%0, [fp, #-4]!";
 	}
-	ss << '}';
-	in.operands = ss.str();
+	else {
+		in.mnemonic = "ldmdb";
+		std::stringstream ss;
+		ss << "fp!, {" << *regs.begin();
+		for (auto r = std::next(regs.begin()); r != regs.end(); ++r) {
+			ss << ", " << *r;
+		}
+		ss << '}';
+		in.operands = ss.str();
+	}
 
 	in._is_call = false;
 	in._is_jump = false;
@@ -728,10 +740,10 @@ template<class list> vins vins::pop(const list& regs) {
 	return in;
 }
 
-template vins vins::push<std::vector<vreg>>(const std::vector<vreg>& regs);
-template vins vins::pop<std::vector<vreg>>(const std::vector<vreg>& regs);
-template vins vins::push<std::initializer_list<vreg>>(const std::initializer_list<vreg>& regs);
-template vins vins::pop<std::initializer_list<vreg>>(const std::initializer_list<vreg>& regs);
+template vins vins::push_second_stack<std::vector<vreg>>(const std::vector<vreg>& regs);
+template vins vins::pop_second_stack<std::vector<vreg>>(const std::vector<vreg>& regs);
+template vins vins::push_second_stack<std::initializer_list<vreg>>(const std::initializer_list<vreg>& regs);
+template vins vins::pop_second_stack<std::initializer_list<vreg>>(const std::initializer_list<vreg>& regs);
 
 bool vins::is_pseudo() const {
 	return this->mnemonic == "pseudo";

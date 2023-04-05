@@ -76,8 +76,8 @@ public:
 	static vins ins_ldr(vreg data, const std::string& label);
 	static vins ins_return();
 	static vins ins_arm_it(const char* cond);
-	template<class list> static vins push(const list& regs);
-	template<class list> static vins pop(const list& regs);
+	template<class list> static vins push_second_stack(const list& regs);
+	template<class list> static vins pop_second_stack(const list& regs);
 
 	static vins data_word(int data);
 

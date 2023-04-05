@@ -734,21 +734,21 @@ void spill(control_flow_graph& cfg) {
 			else {
 				vins tmp;
 				if (regs.size()) {
-					tmp = vins::push(regs);
+					tmp = vins::push_second_stack(regs);
 					in->transfer_label(tmp);
 					bb.insert(in, std::move(tmp));
 				}
 				for (vreg r : use_regs) {
-					tmp = vins::ins_ldr(vreg(r.num), vreg(11), -4 - 4 * r.spill_slot);
+					tmp = vins::ins_ldr(vreg(r.num), vreg(11), -4 - 4 * (r.spill_slot + regs.size()));
 					bb.insert(in, std::move(tmp));
 				}
 				auto pos = std::next(in);
 				for (vreg r : def_regs) {
-					tmp = vins::ins_ldr(vreg(r.num), vreg(11), -4 - 4 * r.spill_slot);
+					tmp = vins::ins_ldr(vreg(r.num), vreg(11), -4 - 4 * (r.spill_slot + regs.size()));
 					bb.insert(pos, std::move(tmp));
 				}
 				if (regs.size()) {
-					tmp = vins::pop(regs);
+					tmp = vins::pop_second_stack(regs);
 					bb.insert(pos, std::move(tmp));
 				}
 			}
@@ -817,13 +817,11 @@ void spill(control_flow_graph& cfg) {
 					++l;
 				}
 				
-				vins push_ins = vins::push(to_stack);
+				vins push_ins = vins::push_second_stack(to_stack);
 				in->transfer_label(push_ins);
 				bb.insert(in, std::move(push_ins));
-				bb.insert(std::next(in), vins::pop(to_stack));
+				bb.insert(std::next(in), vins::pop_second_stack(to_stack));
 				free_regs.insert(free_regs.end(), to_stack.begin(), to_stack.end());
-
-				fix_stack_reference(*in, to_stack.size() * 4);
 			}
 
 			assert(free_regs.size() >= reg_map.size());
@@ -837,7 +835,7 @@ void spill(control_flow_graph& cfg) {
 			for (unsigned i : in->use) {
 				if (in->regs[i].spill_slot >= 0) {
 					vreg r = vreg(reg_map.at(in->regs[i].spill_slot));
-					vins tmp = vins::ins_ldr(r, vreg(11), - 4 - 4 * in->regs[i].spill_slot);
+					vins tmp = vins::ins_ldr(r, vreg(11), - 4 - 4 * (in->regs[i].spill_slot + to_stack.size()));
 					in->transfer_label(tmp);
 					bb.insert(in, std::move(tmp));
 				}
@@ -858,7 +856,7 @@ void spill(control_flow_graph& cfg) {
 				}
 				if (in->regs[i].spill_slot >= 0) {
 					vreg r = vreg(reg_map.at(in->regs[i].spill_slot));
-					vins tmp = vins::ins_str(r, vreg(11), -4 - 4 * in->regs[i].spill_slot);
+					vins tmp = vins::ins_str(r, vreg(11), -4 - 4 * (in->regs[i].spill_slot + to_stack.size()));
 					bb.insert(std::next(in), std::move(tmp));
 				}
 			}
