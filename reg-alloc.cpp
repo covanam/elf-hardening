@@ -603,6 +603,17 @@ static void insert_stack_recover(
 		auto ret = std::prev(bb.end(), 2);
 		assert(ret->is_function_return());
 
+		for (vreg& r : ret->regs) {
+			if (r.num == 15) { // pc
+				r.num = 14; // lr
+
+				vins tmp = vins::ins_return();
+				bb.insert(std::prev(bb.end()), std::move(tmp));
+			}
+		}
+
+		ret = std::prev(bb.end(), 2);
+
 		basic_block store_second_stack = basic_block({
 			vins::ins_ldr(vreg(12), ".second_stack"), // address of stack ptr
 			vins::ins_sub(vreg(11), vreg(11), s + 4), // subtract stack ptr
@@ -833,6 +844,18 @@ void spill(control_flow_graph& cfg) {
 			}
 
 			for (unsigned i : in->gen) {
+				if (in->is_jump()) {
+					if (in->mnemonic.rfind("pop", 0) == 0) {
+						for (vreg& r : in->regs) {
+							if (r.num == 15) { // pc
+								r.num = 14; // lr
+
+								vins tmp = vins::ins_return();
+								bb.insert(std::next(in), std::move(tmp));
+							}
+						}
+					}
+				}
 				if (in->regs[i].spill_slot >= 0) {
 					vreg r = vreg(reg_map.at(in->regs[i].spill_slot));
 					vins tmp = vins::ins_str(r, vreg(11), -4 - 4 * in->regs[i].spill_slot);
