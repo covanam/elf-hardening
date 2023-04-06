@@ -1145,11 +1145,29 @@ void lifter::add_second_stack_addresses() {
 
 	add_second_stack_address(instructions.end(), sstack_label);
 
+	int distance = 0;
+
 	for (auto in = instructions.rbegin(); in != --instructions.rend(); ++in) {
 		if (in->is_pseudo() && in->operands == "func_entry") {
 			sstack_label = ".second_stack_" + std::to_string(label_count);
 			add_second_stack_address(--in.base(), sstack_label);
 			++label_count;
+			distance = 0;
+		}
+
+		distance += 4;
+
+		if (distance > 4096) {
+			sstack_label = ".second_stack_" + std::to_string(label_count);
+			auto insert_pos = in.base();
+			if (insert_pos->label.empty()) {
+				insert_pos->label = ".jump_over_data_" + std::to_string(label_count);
+			}
+
+			instructions.insert(insert_pos, vins::ins_b("", insert_pos->label.c_str()));
+			add_second_stack_address(insert_pos, sstack_label);
+			++label_count;
+			distance = 0;
 		}
 
 		if (in->target_label == ".second_stack")
