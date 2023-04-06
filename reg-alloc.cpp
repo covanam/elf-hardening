@@ -136,6 +136,7 @@ register_interference_graph get_rig(
 		r.second.erase(vreg(13));
 		r.second.erase(vreg(14));
 		r.second.erase(vreg(15));
+		r.second.erase(r.first);
 	}
 
 	return rig;
@@ -213,7 +214,7 @@ std::map<vreg, vreg> register_allocate(
 				if (r->first.num < 16) {
 					// do nothing
 				}
-				else if (r->second.size() <= num_physical_reg) {
+				else if (r->second.size() < num_physical_reg) {
 					stack.push_back({r->first, r->second});
 					changed = true;
 					vreg n = r->first;
