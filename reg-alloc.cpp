@@ -711,6 +711,9 @@ void spill(control_flow_graph& cfg) {
 				}
 			}
 
+			if (regs.empty())
+				continue;
+
 			if (in->is_pseudo() && in->operands == "func_entry") {
 				assert(use_regs.empty());
 				auto pos = std::next(in);
@@ -724,6 +727,18 @@ void spill(control_flow_graph& cfg) {
 				auto pos = std::prev(in);
 				for (auto& ngu : bb) {
 				}
+
+				for (vreg& r : pos->regs) {
+					if (r.num == 15) { // pc
+						r.num = 14; // lr
+
+						vins tmp = vins::ins_return();
+						bb.insert(std::prev(bb.end()), std::move(tmp));
+					}
+				}
+
+				pos = std::prev(bb.end(), 2);
+
 				assert(pos->is_function_return());
 				for (vreg r : use_regs) {
 					vins tmp = vins::ins_ldr(vreg(r.num), vreg(11), -4 - 4 * r.spill_slot);
@@ -732,6 +747,18 @@ void spill(control_flow_graph& cfg) {
 				}
 			}
 			else {
+
+				if (in->mnemonic.rfind("pop", 0) == 0) {
+					for (vreg& r : in->regs) {
+						if (r.num == 15) { // pc
+							r.num = 14; // lr
+
+							vins tmp = vins::ins_return();
+							bb.insert(std::next(in), std::move(tmp));
+						}
+					}
+				}
+
 				vins tmp;
 				if (regs.size()) {
 					tmp = vins::push_second_stack(regs);
