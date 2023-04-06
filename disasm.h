@@ -78,6 +78,8 @@ public:
 	static vins ins_arm_it(const char* cond);
 	template<class list> static vins push_second_stack(const list& regs);
 	template<class list> static vins pop_second_stack(const list& regs);
+	template<class list> static vins stmia(vreg addr, const list& regs);
+	template<class list> static vins ldmdb(vreg addr, const list& regs);
 
 	static vins data_word(int data);
 

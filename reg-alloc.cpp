@@ -127,13 +127,11 @@ register_interference_graph get_rig(
 	cfg.reset();
 	get_multiple_written_interference(entry, rig);
 
-	rig.erase(vreg(11));
 	rig.erase(vreg(12));
 	rig.erase(vreg(13));
 	rig.erase(vreg(14));
 	rig.erase(vreg(15));
 	for (auto& r : rig) {
-		r.second.erase(vreg(11));
 		r.second.erase(vreg(12));
 		r.second.erase(vreg(13));
 		r.second.erase(vreg(14));
@@ -195,6 +193,14 @@ std::map<vreg, vreg> register_allocate(
 
 	std::list<std::pair<vreg, std::set<vreg>>> stack;
 	std::list<std::pair<vreg, std::set<vreg>>> spilled_regs;
+
+	auto r11 = rig.find(vreg(11));
+	if (r11 != rig.end()) {
+		spilled_regs.push_back(*r11);
+		rig.erase(r11);
+		for (auto& r : rig)
+			r.second.erase(vreg(11));
+	}
 
 	while (true) {
 		register_interference_graph temp = rig;
@@ -718,6 +724,8 @@ void spill(control_flow_graph& cfg) {
 				assert(use_regs.empty());
 				auto pos = std::next(in);
 				for (vreg r : def_regs) {
+					if (r.num == 11)
+						continue;
 					vins tmp = vins::ins_str(vreg(r.num), vreg(11), -4 - 4 * r.spill_slot);
 					bb.insert(pos, std::move(tmp));
 				}
@@ -741,6 +749,8 @@ void spill(control_flow_graph& cfg) {
 
 				assert(pos->is_function_return());
 				for (vreg r : use_regs) {
+					if (r.num == 11)
+						continue;
 					vins tmp = vins::ins_ldr(vreg(r.num), vreg(11), -4 - 4 * r.spill_slot);
 					pos->transfer_label(tmp);
 					bb.insert(pos, std::move(tmp));
@@ -758,6 +768,61 @@ void spill(control_flow_graph& cfg) {
 						}
 					}
 				}
+
+				bool use_r11 = false;
+				for (vreg r : in->regs) {
+					if (r.num == 11)
+						use_r11 = true;
+				}
+
+				if (use_r11) {
+					vreg stack_ptr = vreg(0);
+					while (true) {
+						bool changed = false;
+						for (vreg r : in->regs) {
+							if (r.num == stack_ptr.num)
+								changed = true; 
+								stack_ptr.num++;
+								break;
+						}
+						if (!changed)
+							break;
+					}
+					assert(stack_ptr.num < 11);
+
+					vins tmp;
+
+					tmp = vins::push_second_stack<std::initializer_list<vreg>>({stack_ptr});
+					in->transfer_label(tmp);
+					bb.insert(in, std::move(tmp));
+
+					tmp = vins::ins_mov(stack_ptr, vreg(11));
+					bb.insert(in, std::move(tmp));
+
+					tmp = vins::stmia(stack_ptr, regs);
+					bb.insert(in, std::move(tmp));
+
+					for (vreg r : use_regs) {
+						tmp = vins::ins_ldr(vreg(r.num), stack_ptr, -8 - 4 * (r.spill_slot + regs.size()));
+						bb.insert(in, std::move(tmp));
+					}
+
+					auto pos = std::next(in);
+					for (vreg r : def_regs) {
+						tmp = vins::ins_str(vreg(r.num), stack_ptr, -8 - 4 * (r.spill_slot + regs.size()));
+						bb.insert(pos, std::move(tmp));
+					}
+
+					tmp = vins::ldmdb(stack_ptr, regs);
+					bb.insert(pos, std::move(tmp));
+
+					tmp = vins::ins_mov(vreg(11), stack_ptr);
+					bb.insert(pos, std::move(tmp));
+
+					tmp = vins::pop_second_stack<std::initializer_list<vreg>>({stack_ptr});
+					bb.insert(pos, std::move(tmp));
+				}
+				else {
 
 				vins tmp;
 				if (regs.size()) {
@@ -777,6 +842,7 @@ void spill(control_flow_graph& cfg) {
 				if (regs.size()) {
 					tmp = vins::pop_second_stack(regs);
 					bb.insert(pos, std::move(tmp));
+				}
 				}
 			}
 		}

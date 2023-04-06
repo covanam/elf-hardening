@@ -745,6 +745,72 @@ template vins vins::pop_second_stack<std::vector<vreg>>(const std::vector<vreg>&
 template vins vins::push_second_stack<std::initializer_list<vreg>>(const std::initializer_list<vreg>& regs);
 template vins vins::pop_second_stack<std::initializer_list<vreg>>(const std::initializer_list<vreg>& regs);
 
+template<class list> vins vins::stmia(vreg addr, const list& regs) {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+
+	if (regs.size() == 1) {
+		in.mnemonic = "str";
+		in.operands = "%1, [%0], #4";
+	}
+	else {
+		in.mnemonic = "stmia";
+		std::stringstream ss;
+		ss << "%0!, {" << *regs.begin();
+		for (auto r = std::next(regs.begin()); r != regs.end(); ++r) {
+			ss << ", " << *r;
+		}
+		ss << '}';
+		in.operands = ss.str();
+	}
+
+	in._is_call = false;
+	in._is_jump = false;
+	in._can_fall_through = true;
+	in._size = 0;
+	in.regs.push_back(addr);
+	in.regs.insert(in.regs.end(), regs.begin(), regs.end());
+	in.use = std::vector<unsigned>(in.regs.size());
+	std::iota(in.use.begin(), in.use.end(), 0);
+
+	return in;
+}
+
+template<class list> vins vins::ldmdb(vreg addr, const list& regs) {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+
+	if (regs.size() == 1) {
+		in.mnemonic = "ldr";
+		in.operands = "%1, [%0, #-4]!";
+	}
+	else {
+		in.mnemonic = "ldmdb";
+		std::stringstream ss;
+		ss << "%0!, {" << *regs.begin();
+		for (auto r = std::next(regs.begin()); r != regs.end(); ++r) {
+			ss << ", " << *r;
+		}
+		ss << '}';
+		in.operands = ss.str();
+	}
+
+	in._is_call = false;
+	in._is_jump = false;
+	in._can_fall_through = true;
+	in._size = 0;
+	in.regs.push_back(addr);
+	in.regs.insert(in.regs.end(), regs.begin(), regs.end());
+	in.gen = std::vector<unsigned>(regs.size());
+	std::iota(in.gen.begin(), in.gen.end(), 1);
+	in.use = {0};
+
+	return in;
+}
+
+template vins vins::stmia<std::vector<vreg>>(vreg addr, const std::vector<vreg>& regs);
+template vins vins::ldmdb<std::vector<vreg>>(vreg addr, const std::vector<vreg>& regs);
+
 bool vins::is_pseudo() const {
 	return this->mnemonic == "pseudo";
 }
