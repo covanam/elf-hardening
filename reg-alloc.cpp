@@ -744,7 +744,7 @@ void spill(control_flow_graph& cfg) {
 				}
 				auto pos = std::next(in);
 				for (vreg r : def_regs) {
-					tmp = vins::ins_ldr(vreg(r.num), vreg(11), -4 - 4 * (r.spill_slot + regs.size()));
+					tmp = vins::ins_str(vreg(r.num), vreg(11), -4 - 4 * (r.spill_slot + regs.size()));
 					bb.insert(pos, std::move(tmp));
 				}
 				if (regs.size()) {
