@@ -823,26 +823,25 @@ void spill(control_flow_graph& cfg) {
 					bb.insert(pos, std::move(tmp));
 				}
 				else {
-
-				vins tmp;
-				if (regs.size()) {
-					tmp = vins::push_second_stack(regs);
-					in->transfer_label(tmp);
-					bb.insert(in, std::move(tmp));
-				}
-				for (vreg r : use_regs) {
-					tmp = vins::ins_ldr(vreg(r.num), vreg(11), -4 - 4 * (r.spill_slot + regs.size()));
-					bb.insert(in, std::move(tmp));
-				}
-				auto pos = std::next(in);
-				for (vreg r : def_regs) {
-					tmp = vins::ins_str(vreg(r.num), vreg(11), -4 - 4 * (r.spill_slot + regs.size()));
-					bb.insert(pos, std::move(tmp));
-				}
-				if (regs.size()) {
-					tmp = vins::pop_second_stack(regs);
-					bb.insert(pos, std::move(tmp));
-				}
+					vins tmp;
+					if (regs.size()) {
+						tmp = vins::push_second_stack(regs);
+						in->transfer_label(tmp);
+						bb.insert(in, std::move(tmp));
+					}
+					for (vreg r : use_regs) {
+						tmp = vins::ins_ldr(vreg(r.num), vreg(11), -4 - 4 * (r.spill_slot + regs.size()));
+						bb.insert(in, std::move(tmp));
+					}
+					auto pos = std::next(in);
+					for (vreg r : def_regs) {
+						tmp = vins::ins_str(vreg(r.num), vreg(11), -4 - 4 * (r.spill_slot + regs.size()));
+						bb.insert(pos, std::move(tmp));
+					}
+					if (regs.size()) {
+						tmp = vins::pop_second_stack(regs);
+						bb.insert(pos, std::move(tmp));
+					}
 				}
 			}
 		}
