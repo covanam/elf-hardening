@@ -203,6 +203,22 @@ std::map<vreg, vreg> register_allocate(
 			r.second.erase(vreg(11));
 	}
 
+	std::map<vreg, std::set<vreg>> represent_groups;
+	for (auto i = rig.begin(); i != rig.end(); ++i) {
+		if (i->first.num < 16)
+			continue;
+		for (auto j = std::next(i); j != rig.end();) {
+			auto next = std::next(j);
+			if (i->second == j->second) {
+				represent_groups[i->first].insert(j->first);
+				for (auto& r : rig)
+					r.second.erase(j->first);
+				rig.erase(j);
+			}
+			j = next;
+		}
+	}
+
 	while (true) {
 		register_interference_graph temp = rig;
 		stack.clear();
@@ -295,6 +311,12 @@ std::map<vreg, vreg> register_allocate(
 		}
 		else {
 			allocation.insert({r->first, vreg(14)});
+		}
+	}
+
+	for (auto& r : represent_groups) {
+		for (auto h : r.second) {
+			allocation.insert({h, allocation.at(r.first)});
 		}
 	}
 
