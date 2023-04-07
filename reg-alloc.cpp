@@ -579,8 +579,10 @@ void split_registers(control_flow_graph& cfg) {
 static std::vector<vreg> find_free_reg(const vins& in) {
 	std::vector<vreg> free_reg;
 	for (int i = 0; i < 11; ++i) {
-		auto tmp = in.live_regs.find(vreg(i));
-		if (tmp == in.live_regs.end())
+		bool used_by_others = in.live_regs.find(vreg(i)) != in.live_regs.end();
+		bool used_by_this =
+			std::find(in.regs.begin(), in.regs.end(), vreg(i)) != in.regs.end();
+		if (!used_by_others && !used_by_this)
 			free_reg.push_back(vreg(i));
 	}
 	return free_reg;
