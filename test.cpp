@@ -56,15 +56,8 @@ int main(int argc, char *argv[]) {
 
 	control_flow_graph cfg = get_cfg(lift);
 
-	std::cout << "\nOriginal:------------------------------------------\n";
-	for (auto& bb : cfg) {
-		for (auto& in : bb) {
-			std::cout << std::hex << in.addr << std::dec << ' ' << in << '\n';
-		}
-	}
-
 	int bb_from = 0;
-	int bb_to = 50;
+	int bb_to = 5000;
 	int bb_count = 0;
 
 	for (auto& bb : cfg) {
@@ -91,55 +84,7 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	split_registers(cfg);
-	
-	std::cout << "\nSplit:------------------------------------------\n";
-	for (auto& bb : cfg) {
-		for (auto& in : bb) {
-			std::cout << std::hex << in.addr << std::dec << ' ' << in << '\n'; //<< "\t(";
-			//for (vreg r : in.regs) {
-		//		std::cout << r << ' ';
-		//	}
-		//	std::cout << ")\n";
-		}
-	}
-
-	liveness_analysis(cfg);
-	std::cout << "\nLiveness:------------------------------------------\n";
-	for (auto& bb : cfg) {
-		for (auto& in : bb) {
-			std::cout << in << " (";
-			for (auto r : in.live_regs) {
-				std::cout << r << ' ';
-			}
-			std::cout << ")\n";
-		}
-	}
-
-	for (auto& bb : cfg) {
-		if (bb.is_entry()) {
-			std::map<vreg, vreg> alloc = register_allocate(cfg, bb);
-
-			cfg.reset();
-			replace_reg(bb, alloc);
-		}
-	}
-
-	std::cout << "\nAllocate:--------------------------\n";
-	for (auto& bb : cfg) {
-		for (auto& in : bb) {
-			std::cout << std::hex << in.addr << std::dec << ' ' << in << '\n';
-		}
-	}
-
-	spill(cfg);
-
-	std::cout << "\nSpilled:--------------------------\n";
-	for (auto& bb : cfg) {
-		for (auto& in : bb) {
-			std::cout << std::hex << in.addr << std::dec << ' ' << in << '\n';;
-		}
-	}
+	allocate_registers(cfg);
 	
 	lift.instructions = cfg_dump(cfg);
 	

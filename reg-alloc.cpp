@@ -189,7 +189,7 @@ static bool done_removing(const register_interference_graph& rig) {
 	return true;
 }
 
-std::map<vreg, vreg> register_allocate(
+static std::map<vreg, vreg> assign_register(
 	control_flow_graph& cfg,
 	basic_block& entry
 ) {
@@ -441,7 +441,7 @@ static basic_block& find_bb_containing_vins(
 	assert(0);
 }
 
-void split_registers(control_flow_graph& cfg) {
+static void split_registers(control_flow_graph& cfg) {
 	vreg v(32);
 
 	for (auto& bb : cfg) {
@@ -704,7 +704,7 @@ static void fix_stack_reference(vins& in, int v) {
 	}
 }
 
-void spill(control_flow_graph& cfg) {
+static void spill(control_flow_graph& cfg) {
 	for (auto& bb : cfg) {
 		for (auto& in : bb) {
 			in.live_regs.clear();
@@ -1011,26 +1011,50 @@ void spill(control_flow_graph& cfg) {
 	}
 }
 
-static void apply_allocate(basic_block& bb, std::map<vreg, int>& replace_map) {
+static void replace_reg(basic_block& bb, std::map<vreg, vreg>& replace_map) {
 	if (bb.visited)
 		return;
-	
-	bb.visited = true;
 
 	for (vins& in : bb) {
 		for (vreg& reg : in.regs) {
 			auto f = replace_map.find(reg);
 			if (f != replace_map.end()) {
-				reg.num = f->second;
+				reg = f->second;
 			}
 		}
 	}
 
+	bb.visited = true;
+
 	for (basic_block* succ : bb.successors) {
-		apply_allocate(*succ, replace_map);
+		replace_reg(*succ, replace_map);
 	}
 
 	for (basic_block* pred : bb.predecessors) {
-		apply_allocate(*pred, replace_map);
+		replace_reg(*pred, replace_map);
 	}
+}
+
+void allocate_registers(control_flow_graph& cfg) {
+	split_registers(cfg);
+
+	liveness_analysis(cfg);
+
+	std::set<std::string> visited_entries;
+
+	for (auto& bb : cfg) {
+		if (bb.is_entry() && visited_entries.find(bb.front().label) == visited_entries.end()) {
+			std::map<vreg, vreg> alloc = assign_register(cfg, bb);
+
+			cfg.reset();
+			replace_reg(bb, alloc);
+
+			for (const auto& bb : cfg) {
+				if (bb.visited && bb.is_entry())
+					visited_entries.insert(bb.front().label);
+			}
+		}
+	}
+
+	spill(cfg);
 }
