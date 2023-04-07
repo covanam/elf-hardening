@@ -223,12 +223,10 @@ std::map<vreg, vreg> register_allocate(
 	}
 
 	while (true) {
-		register_interference_graph temp = rig;
-		stack.clear();
 		bool changed = true;
 		while (changed) {
 			changed = false;
-			for (auto r = temp.begin(); r != temp.end();) {
+			for (auto r = rig.begin(); r != rig.end();) {
 				auto next = std::next(r);
 				if (r->first.num < 16) {
 					// do nothing
@@ -237,8 +235,8 @@ std::map<vreg, vreg> register_allocate(
 					stack.push_back({r->first, r->second});
 					changed = true;
 					vreg n = r->first;
-					temp.erase(r);
-					for (auto& rr : temp) {
+					rig.erase(r);
+					for (auto& rr : rig) {
 						rr.second.erase(n);
 					}
 				}
@@ -246,10 +244,10 @@ std::map<vreg, vreg> register_allocate(
 			}
 		}
 
-		if (!done_removing(temp)) {
+		if (!done_removing(rig)) {
 			float min_cost = std::numeric_limits<float>::max();
 			vreg spilled;
-			for (const auto& r : temp) {
+			for (const auto& r : rig) {
 				float cost = usage_count(cfg, entry, r.first) / r.second.size();
 				if (cost < min_cost) {
 					min_cost = cost;
