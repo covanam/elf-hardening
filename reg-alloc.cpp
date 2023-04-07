@@ -161,6 +161,9 @@ static float usage_count_forward_flow(basic_block& bb, vreg reg) {
 	for (basic_block* succ : bb.successors) {
 		cost += usage_count_forward_flow(*succ, reg);
 	}
+	for (basic_block* pred : bb.predecessors) {
+		cost += usage_count_forward_flow(*pred, reg);
+	}
 
 	return cost;
 }
