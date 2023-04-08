@@ -808,10 +808,11 @@ static void spill(control_flow_graph& cfg) {
 					while (true) {
 						bool changed = false;
 						for (vreg r : in->regs) {
-							if (r.num == stack_ptr.num)
+							if (r.num == stack_ptr.num) {
 								changed = true; 
 								stack_ptr.num++;
 								break;
+							}
 						}
 						if (!changed)
 							break;
