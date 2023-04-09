@@ -1139,6 +1139,24 @@ static void remove_it(std::list<vins>& il) {
 	}
 }
 
+std::string negate_condition(const std::string& cond) {
+	if      (cond == "ne") return "eq";
+	else if (cond == "eq") return "ne";
+	else if (cond == "cs") return "cc";
+	else if (cond == "cc") return "cs";
+	else if (cond == "mi") return "pl";
+	else if (cond == "pl") return "mi";
+	else if (cond == "vs") return "vc";
+	else if (cond == "vc") return "vs";
+	else if (cond == "hi") return "ls";
+	else if (cond == "ls") return "hi";
+	else if (cond == "ge") return "lt";
+	else if (cond == "lt") return "ge";
+	else if (cond == "gt") return "le";
+	else if (cond == "le") return "gt";
+	else assert(0);
+}
+
 static void remove_conditional_return(std::list<vins>& il) {
 	int label_count = 0;
 	for (auto i = il.begin(); i != il.end();) {
@@ -1148,7 +1166,7 @@ static void remove_conditional_return(std::list<vins>& il) {
 				next->label = ".over_function_return_" + std::to_string(label_count);
 				label_count++;
 			}
-			vins tmp = vins::ins_b(i->cond.c_str(), next->label.c_str());
+			vins tmp = vins::ins_b(negate_condition(i->cond).c_str(), next->label.c_str());
 			i->transfer_label(tmp);
 			il.insert(i, std::move(tmp));
 
