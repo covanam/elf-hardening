@@ -1,8 +1,9 @@
-CC=arm-none-eabi-gcc
+CC=~/Dev/LLVMEmbeddedToolchainForArm-15.0.2-Linux-x86_64/bin/clang
 
 CFLAGS  = -Wall -Wextra -Werror
-CFLAGS += -mthumb -march=armv7-m
 CFLAGS += -ffreestanding
+CFLAGS += --config ~/Dev/LLVMEmbeddedToolchainForArm-15.0.2-Linux-x86_64/bin/armv7em_soft_nofp.cfg
+CFLAGS +=-Os -std=c99
 
 all: startup.o stdlib.o second_stack.o
 	make -C tinycrypt

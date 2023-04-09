@@ -6,17 +6,20 @@
 #
 ################################################################################
 
+CLANG_DIRECTORY=~/Dev/LLVMEmbeddedToolchainForArm-15.0.2-Linux-x86_64/bin/
 # EDIT HERE:
-CC=arm-none-eabi-gcc
-LD=arm-none-eabi-ld
+CC=~/Dev/LLVMEmbeddedToolchainForArm-15.0.2-Linux-x86_64/bin/clang
+LD=~/Dev/LLVMEmbeddedToolchainForArm-15.0.2-Linux-x86_64/bin/clang
 
 # Compiler flags
 CFLAGS  = -Wall -Wextra -Werror
-CFLAGS += -mthumb -march=armv7-m
-CFLAGS += -ffreestanding
-CFLAGS +=-Os -std=c99 -Wall -Wextra -D_ISOC99_SOURCE -MMD -I../lib/include/ -I../lib/source/ -I../tests/include/
+CFLAGS += --config ~/Dev/LLVMEmbeddedToolchainForArm-15.0.2-Linux-x86_64/bin/armv7em_soft_nofp.cfg
+CFLAGS +=-std=c99 -D_ISOC99_SOURCE -MMD -I../lib/include/ -I../lib/source/ -I../tests/include/
+CFLAGS +=-I ~/Dev/LLVMEmbeddedToolchainForArm-15.0.2-Linux-x86_64/lib/clang-runtimes/armv7m_soft_nofp/include
+CFLAGS += -ffreestanding -fno-builtin -Os
 
 LDFLAGS = -nostdlib -T../../linker.ld
+LDFLAGS += ~/Dev/LLVMEmbeddedToolchainForArm-15.0.2-Linux-x86_64/lib/clang-runtimes/armv7m_soft_nofp/lib/libclang_rt.builtins-armv7m.a
 
 vpath %.c ../lib/source/
 ENABLE_TESTS=true
