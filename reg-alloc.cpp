@@ -727,20 +727,20 @@ static void spill(control_flow_graph& cfg) {
 
 	for (auto& bb : cfg) {
 		for (auto in = bb.begin(); in != bb.end(); ++in) {
-			std::vector<vreg> regs;
+			std::set<vreg> regs;
 			std::vector<vreg> use_regs;
 			std::vector<vreg> def_regs;
 			for (unsigned i : in->use) {
 				if (in->regs[i].spill_slot >= 0 && in->regs[i].num >= 0) {
 					use_regs.push_back(in->regs[i]);
-					regs.push_back(vreg(in->regs[i].num));
+					regs.insert(vreg(in->regs[i].num));
 					in->regs[i] = vreg(in->regs[i].num);
 				}
 			}
 			for (unsigned i : in->gen) {
 				if (in->regs[i].spill_slot >= 0 && in->regs[i].num >= 0) {
 					def_regs.push_back(in->regs[i]);
-					regs.push_back(vreg(in->regs[i].num));
+					regs.insert(vreg(in->regs[i].num));
 					in->regs[i] = vreg(in->regs[i].num);
 				}
 			}
