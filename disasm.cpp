@@ -96,10 +96,10 @@ static std::list<vins> disassemble(const ELFIO::elfio& reader) {
 			continue;
 
 		/* gcc use $t and $d symbols to mark instructions and data */
-		if (name == "$d") {
+		if (name.rfind("$d", 0) == 0) {
 			regions.back().size = value - regions.back().offset;
 			regions.push_back(region{true, value, 0});
-		} else if (name == "$t") {
+		} else if (name.rfind("$t", 0) == 0) {
 			regions.back().size = value - regions.back().offset;
 			regions.push_back(region{false, value, 0});
 		}
