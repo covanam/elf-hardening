@@ -1143,9 +1143,9 @@ static void remove_conditional_return(std::list<vins>& il) {
 	int label_count = 0;
 	for (auto i = il.begin(); i != il.end();) {
 		auto next = std::next(i);
-		if (i->mnemonic.rfind("bx", 0) == 0 && i->cond.size()) {
+		if (i->is_function_return() && i->cond.size()) {
 			if (next->label.empty()) {
-				next->label = ".jump_over_bx_" + std::to_string(label_count);
+				next->label = ".over_function_return_" + std::to_string(label_count);
 				label_count++;
 			}
 			vins tmp = vins::ins_b(i->cond.c_str(), next->label.c_str());
@@ -1153,7 +1153,12 @@ static void remove_conditional_return(std::list<vins>& il) {
 			il.insert(i, std::move(tmp));
 
 			i->cond.clear();
-			i->mnemonic.resize(2);
+			if (i->mnemonic.rfind("pop") == 0)
+				i->mnemonic.resize(3);
+			else if (i->mnemonic.rfind("bx") == 0)
+				i->mnemonic.resize(2);
+			else
+				assert(0);
 		}
 		i = next;
 	}
