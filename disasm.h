@@ -60,6 +60,8 @@ public:
 
 	std::string cond;
 
+	void remove_condition();
+
 	vins() = default;
 	vins(const cs_insn &in);
 	vins(uint8_t data, uint64_t addr);

@@ -819,6 +819,11 @@ bool vins::is_pseudo() const {
 	return this->mnemonic == "pseudo";
 }
 
+void vins::remove_condition() {
+	this->cond.clear();
+	this->_can_fall_through = (this->_is_jump == false);
+}
+
 vins vins::function_entry() {
 	vins in;
 	in.addr = std::numeric_limits<uint64_t>::max();
@@ -1174,7 +1179,7 @@ static void remove_conditional_return(std::list<vins>& il) {
 			i->transfer_label(tmp);
 			il.insert(i, std::move(tmp));
 
-			i->cond.clear();
+			i->remove_condition();
 			if (i->mnemonic.rfind("pop") == 0)
 				i->mnemonic.resize(3);
 			else if (i->mnemonic.rfind("bx") == 0)
