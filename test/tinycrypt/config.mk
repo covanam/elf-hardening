@@ -13,7 +13,7 @@ LD=~/Dev/LLVMEmbeddedToolchainForArm-15.0.2-Linux-x86_64/bin/clang
 
 # Compiler flags
 CFLAGS  = -Wall -Wextra -Werror
-CFLAGS += --config ~/Dev/LLVMEmbeddedToolchainForArm-15.0.2-Linux-x86_64/bin/armv7em_soft_nofp.cfg
+CFLAGS += --config ~/Dev/LLVMEmbeddedToolchainForArm-15.0.2-Linux-x86_64/bin/armv7m_soft_nofp.cfg
 CFLAGS +=-std=c99 -D_ISOC99_SOURCE -MMD -I../lib/include/ -I../lib/source/ -I../tests/include/
 CFLAGS +=-I ~/Dev/LLVMEmbeddedToolchainForArm-15.0.2-Linux-x86_64/lib/clang-runtimes/armv7m_soft_nofp/include
 CFLAGS += -ffreestanding -fno-builtin -Os
