@@ -1139,6 +1139,26 @@ static void remove_it(std::list<vins>& il) {
 	}
 }
 
+static void remove_conditional_return(std::list<vins>& il) {
+	int label_count = 0;
+	for (auto i = il.begin(); i != il.end();) {
+		auto next = std::next(i);
+		if (i->mnemonic.rfind("bx", 0) == 0 && i->cond.size()) {
+			if (next->label.empty()) {
+				next->label = ".jump_over_bx_" + std::to_string(label_count);
+				label_count++;
+			}
+			vins tmp = vins::ins_b(i->cond.c_str(), next->label.c_str());
+			i->transfer_label(tmp);
+			il.insert(i, std::move(tmp));
+
+			i->cond.clear();
+			i->mnemonic.resize(2);
+		}
+		i = next;
+	}
+}
+
 void lifter::add_second_stack_addresses() {
 	std::string sstack_label = ".second_stack_0";
 	int label_count = 1;
@@ -1428,6 +1448,7 @@ bool lifter::load(std::string file) {
 	remove_nops(instructions);
 	transform_cbnz_cbz(instructions);
 	remove_it(instructions);
+	remove_conditional_return(instructions);
 
 	return true;
 }
