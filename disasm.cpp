@@ -703,7 +703,7 @@ template<class list> vins vins::push_second_stack(const list& regs) {
 	in._is_jump = false;
 	in._can_fall_through = true;
 	in._size = 0;
-	in.regs = regs;
+	in.regs = std::vector<vreg>(regs.begin(), regs.end());
 	in.use = std::vector<unsigned>(regs.size());
 	std::iota(in.use.begin(), in.use.end(), 0);
 
@@ -733,7 +733,7 @@ template<class list> vins vins::pop_second_stack(const list& regs) {
 	in._is_jump = false;
 	in._can_fall_through = true;
 	in._size = 0;
-	in.regs = regs;
+	in.regs = std::vector<vreg>(regs.begin(), regs.end());
 	in.gen = std::vector<unsigned>(regs.size());
 	std::iota(in.gen.begin(), in.gen.end(), 0);
 
@@ -744,6 +744,8 @@ template vins vins::push_second_stack<std::vector<vreg>>(const std::vector<vreg>
 template vins vins::pop_second_stack<std::vector<vreg>>(const std::vector<vreg>& regs);
 template vins vins::push_second_stack<std::initializer_list<vreg>>(const std::initializer_list<vreg>& regs);
 template vins vins::pop_second_stack<std::initializer_list<vreg>>(const std::initializer_list<vreg>& regs);
+template vins vins::push_second_stack<std::set<vreg>>(const std::set<vreg>& regs);
+template vins vins::pop_second_stack<std::set<vreg>>(const std::set<vreg>& regs);
 
 template<class list> vins vins::stmia(vreg addr, const list& regs) {
 	vins in;
@@ -810,6 +812,8 @@ template<class list> vins vins::ldmdb(vreg addr, const list& regs) {
 
 template vins vins::stmia<std::vector<vreg>>(vreg addr, const std::vector<vreg>& regs);
 template vins vins::ldmdb<std::vector<vreg>>(vreg addr, const std::vector<vreg>& regs);
+template vins vins::stmia<std::set<vreg>>(vreg addr, const std::set<vreg>& regs);
+template vins vins::ldmdb<std::set<vreg>>(vreg addr, const std::set<vreg>& regs);
 
 bool vins::is_pseudo() const {
 	return this->mnemonic == "pseudo";
