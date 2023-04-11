@@ -441,7 +441,7 @@ static basic_block& find_bb_containing_vins(
 	assert(0);
 }
 
-static void split_registers(control_flow_graph& cfg) {
+void virtualize_registers(control_flow_graph& cfg) {
 	vreg v(32);
 
 	for (auto& bb : cfg) {
@@ -1037,8 +1037,6 @@ static void replace_reg(basic_block& bb, std::map<vreg, vreg>& replace_map) {
 }
 
 void allocate_registers(control_flow_graph& cfg) {
-	split_registers(cfg);
-
 	liveness_analysis(cfg);
 
 	std::set<std::string> visited_entries;

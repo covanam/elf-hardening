@@ -84,6 +84,7 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
+	virtualize_registers(cfg);
 	allocate_registers(cfg);
 	
 	lift.instructions = cfg_dump(cfg);
