@@ -407,6 +407,8 @@ vins::vins(const cs_insn &in) {
 	_is_call = ::is_call(*in.detail);
 	_can_fall_through = ::can_fall_through(in, *in.detail);
 
+	_update_flags = in.detail->arm.update_flags;
+
 	_size = in.size;
 
 	this->regs = extract_registers(operands);

@@ -60,6 +60,8 @@ public:
 
 	std::string cond;
 
+	bool update_flags() const { return _update_flags; }
+
 	void remove_condition();
 
 	vins() = default;
@@ -113,6 +115,7 @@ public:
 	int stack_offset;
 private:
 	bool _is_jump, _is_call, _can_fall_through;
+	bool _update_flags = false;
 	int64_t _imm = 0;
 	int _size;
 };
