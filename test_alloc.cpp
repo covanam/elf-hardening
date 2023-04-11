@@ -11,7 +11,7 @@ int fastrand() {
 	return (g_seed>>16)&0x7FFF; 
 }
 
-static void replace_reg(basic_block& bb, std::map<vreg, int>& replace_map) {
+static void replace_reg(basic_block& bb, std::map<vreg, vreg>& replace_map) {
 	if (bb.visited)
 		return;
 
@@ -19,7 +19,7 @@ static void replace_reg(basic_block& bb, std::map<vreg, int>& replace_map) {
 		for (vreg& reg : in.regs) {
 			auto f = replace_map.find(reg);
 			if (f != replace_map.end()) {
-				reg.num = f->second;
+				reg = f->second;
 			}
 		}
 	}
@@ -53,46 +53,38 @@ int main(int argc, char *argv[]) {
 		}
 	}
 
-	control_flow_graph cfg = get_cfg(lift.instructions);
-	liveness_analysis(cfg);
+	control_flow_graph cfg = get_cfg(lift);
 
-	int vnum = 16;
+	int bb_from = 0;
+	int bb_to = 5000;
+	int bb_count = 0;
+
 	for (auto& bb : cfg) {
 		if (bb.front().is_data())
 			continue;
-		int skip = 0;
-		for (auto it = ++bb.begin(); it != bb.end(); ++it) {
-			if (!it->mnemonic.compare(0, 2, "it", 2)) {
-				skip = 4;
-				continue;
-			}
-			if (skip) {
-				skip--;
-				continue;
-			}
-			if (it->live_regs.size() < 8) {
-				bb.insert(it, vins::ins_mov(vnum, 0xff));
-				bb.insert(it, vins::ins_add(vnum, vnum, vnum));
-				vnum++;
-				break;
-			}
-		}
-	}
-	for (auto& bb : cfg) {
-		for (auto& in : bb) {
-			in.live_regs.clear();
-		}
-	}
-	liveness_analysis(cfg);
 
-	for (auto& bb : cfg) {
-		if (bb.is_entry()) {
-			std::map<vreg, int> alloc = register_allocate(cfg, bb);
-			cfg.reset();
-			replace_reg(bb, alloc);
+		if (lift.functions.find(bb.front().label) != lift.functions.end()) {
+			vins tmp = vins::ins_mov(vreg(17), 321);
+			bb.insert(std::next(bb.begin()), std::move(tmp));
+		}
+
+		for (auto in = bb.begin(); in != bb.end();) {
+			if (in->is_pseudo() || !in->label.empty()) {
+				++in;
+				continue;
+			}
+			auto next = std::next(in);
+			if (bb_count >= bb_from && bb_count <= bb_to) {
+				vins tmp = vins::ins_add(vreg(17), vreg(17), 99);
+				bb.insert(in, std::move(tmp));
+			}
+			++bb_count;
+			in = next;
 		}
 	}
 
+	allocate_registers(cfg);
+	
 	lift.instructions = cfg_dump(cfg);
 	
 	try { lift.save(argv[argc-1]); }
