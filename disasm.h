@@ -61,6 +61,7 @@ public:
 	std::string cond;
 
 	bool update_flags() const { return _update_flags; }
+	bool use_flags() const { return !!cond.size() || _use_carry || _use_ge; }
 
 	void remove_condition();
 
@@ -116,6 +117,8 @@ public:
 private:
 	bool _is_jump, _is_call, _can_fall_through;
 	bool _update_flags = false;
+	bool _use_carry = false;
+	bool _use_ge = false;
 	int64_t _imm = 0;
 	int _size;
 };
