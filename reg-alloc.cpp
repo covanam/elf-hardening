@@ -734,14 +734,18 @@ static void spill(control_flow_graph& cfg) {
 				if (in->regs[i].spill_slot >= 0 && in->regs[i].num >= 0) {
 					use_regs.push_back(in->regs[i]);
 					regs.insert(vreg(in->regs[i].num));
-					in->regs[i] = vreg(in->regs[i].num);
 				}
 			}
 			for (unsigned i : in->gen) {
 				if (in->regs[i].spill_slot >= 0 && in->regs[i].num >= 0) {
 					def_regs.push_back(in->regs[i]);
 					regs.insert(vreg(in->regs[i].num));
-					in->regs[i] = vreg(in->regs[i].num);
+				}
+			}
+
+			for (vreg& r : in->regs) {
+				if (r.spill_slot >= 0 && r.num >= 0) {
+					r = vreg(r.num);
 				}
 			}
 

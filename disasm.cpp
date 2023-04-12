@@ -407,6 +407,18 @@ vins::vins(const cs_insn &in) {
 	_is_call = ::is_call(*in.detail);
 	_can_fall_through = ::can_fall_through(in, *in.detail);
 
+	_update_flags = in.detail->arm.update_flags;
+	switch (in.id) {
+		case ARM_INS_ADC:
+		case ARM_INS_RRX:
+		case ARM_INS_SBC:
+			_use_carry = true;
+			break;
+		case ARM_INS_SEL:
+			_use_ge = true;
+			break;
+	}
+
 	_size = in.size;
 
 	this->regs = extract_registers(operands);
