@@ -492,6 +492,7 @@ vins vins::ins_cmp(vreg r, int imm) {
 	in._is_call = false;
 	in._is_jump = false;
 	in._can_fall_through = true;
+	in._update_flags = true;
 	in._size = 0;
 	return in;
 }
