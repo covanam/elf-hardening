@@ -946,6 +946,9 @@ void vins::transfer_label(vins& in) {
 }
 
 std::ostream& operator<<(std::ostream& os, vreg r) {
+	if (r.spill_slot >= 0)
+		return os << 's' << r.spill_slot;
+
 	switch(r.num) {
 		case 9:
 			return os << "sb";
@@ -962,8 +965,6 @@ std::ostream& operator<<(std::ostream& os, vreg r) {
 		case 15:
 			return os << "pc";
 		default:
-			if (r.spill_slot >= 0)
-				return os << 's' << r.spill_slot;
 			if (r.num < 9)
 				return os << 'r' << r.num;
 			return os << 'v' << r.num - 16;
