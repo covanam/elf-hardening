@@ -994,7 +994,8 @@ static void spill(control_flow_graph& cfg) {
 					while (l != in->live_regs.end() &&
 					       !(0 <= l->num && l->num < 11) ||
 					       std::find(in->regs.begin(), in->regs.end(), *l)
-					         != in->regs.end()
+					         != in->regs.end() ||
+					       *l == stack_ptr
 					       ) {
 						++l;
 					}
