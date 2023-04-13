@@ -972,11 +972,13 @@ std::ostream& operator<<(std::ostream& os, vreg r) {
 }
 
 std::ostream& operator<<(std::ostream& os, const vins &b) {
+	static int reloc_label_counter = 0;
+
 	if (b.label.length()) {
 		os << b.label << ": ";
 	} else if (b.rel >= 0) {
 		if (b.label.empty())
-			os << ".reloc" << b.addr << ": "; // b.addr should be unique
+			os << ".reloc" << reloc_label_counter << ": ";
 		else
 			os << b.target_label;
 	}
@@ -988,7 +990,7 @@ std::ostream& operator<<(std::ostream& os, const vins &b) {
 			if (b.operands[i] == 'm') {
 				if (b.rel >= 0) {
 					if (b.label.empty())
-						os << ".reloc" << b.addr;
+						os << ".reloc" << reloc_label_counter++;
 					else
 						os << b.label;
 				} else {
