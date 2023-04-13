@@ -69,6 +69,7 @@ public:
 	vins(const cs_insn &in);
 	vins(uint8_t data, uint64_t addr);
 	static vins ins_cmp(vreg r, int imm);
+	static vins ins_cmp(vreg r1, vreg r2);
 	static vins ins_b(const char *condition, const char *label);
 	static vins ins_add(vreg d, vreg r1, vreg r2);
 	static vins ins_add(vreg d, vreg r, int imm);
@@ -81,6 +82,9 @@ public:
 	static vins ins_ldr(vreg data, const std::string& label);
 	static vins ins_return();
 	static vins ins_arm_it(const char* cond);
+	static vins ins_udf();
+	static vins ins_msr(vreg r);
+	static vins ins_mrs(vreg r);
 	template<class list> static vins push_second_stack(const list& regs);
 	template<class list> static vins pop_second_stack(const list& regs);
 	template<class list> static vins stmia(vreg addr, const list& regs);

@@ -497,6 +497,62 @@ vins vins::ins_cmp(vreg r, int imm) {
 	return in;
 }
 
+vins vins::ins_cmp(vreg r1, vreg r2) {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+	in.mnemonic = "cmp";
+	in.operands = "%0, %1";
+	in.regs = {r1, r2};
+	in.use = {0, 1};
+	in._is_call = false;
+	in._is_jump = false;
+	in._can_fall_through = true;
+	in._update_flags = true;
+	in._size = 0;
+	return in;
+}
+
+vins vins::ins_udf() {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+	in.mnemonic = "udf";
+	in.operands = "#0";
+	in._is_call = false;
+	in._is_jump = false;
+	in._can_fall_through = false;
+	in._size = 0;
+	return in;
+}
+
+vins vins::ins_msr(vreg r) {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+	in.mnemonic = "msr";
+	in.operands = "apsr, %0";
+	in._is_call = false;
+	in._is_jump = false;
+	in._can_fall_through = true;
+	in._update_flags = true;
+	in._size = 0;
+	in.regs = {r};
+	in.use = {0};
+	return in;
+}
+vins vins::ins_mrs(vreg r) {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+	in.mnemonic = "mrs";
+	in.operands = "%0, apsr";
+	in._is_call = false;
+	in._is_jump = false;
+	in._can_fall_through = true;
+	in._use_carry = true; // #TODO
+	in._size = 0;
+	in.regs = {r};
+	in.gen = {0};
+	return in;
+}
+
 vins vins::ins_b(const char *condition, const char *label) {
 	vins in;
 	in.addr = std::numeric_limits<uint64_t>::max();
