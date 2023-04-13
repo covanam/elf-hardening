@@ -174,6 +174,8 @@ void apply_eddi(control_flow_graph& cfg) {
 	int in_num = -1;
 
 	for (basic_block& bb : cfg) {
+		if (bb.front().is_data())
+			continue;
 		basic_block::iterator dup_start = bb.begin(), dup_end = bb.begin();
 		if (bb.front().is_pseudo()) {
 			++dup_start;
