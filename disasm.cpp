@@ -558,6 +558,7 @@ vins vins::ins_b(const char *condition, const char *label) {
 	in.addr = std::numeric_limits<uint64_t>::max();
 	in.mnemonic = std::string("b") + condition;
 	in.operands = "%m";
+	in.cond = condition;
 	in.target_label = label;
 	in._is_call = false;
 	in._is_jump = true;
