@@ -44,9 +44,18 @@ static basic_block duplicate(basic_block::iterator begin, basic_block::iterator 
 
 	basic_block ins;
 
+	bool use_flags = false;
+	bool update_flags = false;
+
 	for (auto in = begin; in != end; ++in) {
 		if (in->is_pseudo())
 			continue;
+
+		if (in->use_flags())
+			use_flags = true;
+		
+		if (in->update_flags())
+			update_flags = true;
 
 		vins dup = *in;
 		dup.label.clear();
@@ -80,10 +89,18 @@ static basic_block duplicate(basic_block::iterator begin, basic_block::iterator 
 		}
 	}
 
-	//#TODO this can be redundant
+	if (ins.size() == 0)
+		return {};
+
+	if (update_flags) {
+		// save it to compare with original later
+		ins.push_back(vins::ins_mrs(vreg(32)));
+	}
+	if (use_flags) {
+		// preserve flags as it is used my original instructions
 	ins.push_front(vins::ins_mrs(vreg(31)));
-	ins.push_back(vins::ins_mrs(vreg(32)));
 	ins.push_back(vins::ins_msr(vreg(31)));
+	}
 
 	begin->transfer_label(ins.front());
 
