@@ -472,7 +472,7 @@ static void rename(vreg from, vreg to, std::set<vins*>& def, std::set<vins*>& us
 static bool need_virtualized(vreg reg) {
 	// anything between r0-r11
 	// #TODO: r14(lr) and r12(ip) can be used too
-	return reg >= vreg(0) && reg <= vreg(11) || reg.num >= 16 && reg.num < 32;
+	return reg >= vreg(0) && reg <= vreg(11) || reg.num >= 16 && reg.num < 64;
 }
 
 static basic_block& find_bb_containing_vins(
@@ -490,7 +490,7 @@ static basic_block& find_bb_containing_vins(
 }
 
 static void split_registers(control_flow_graph& cfg) {
-	vreg v(32);
+	vreg v(64);
 
 	for (auto& bb : cfg) {
 		if (bb.front().is_pseudo() && bb.front().operands == "func_entry") {
