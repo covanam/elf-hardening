@@ -1,7 +1,13 @@
-CXXFLAGS = -g -IELFIO -lcapstone -lkeystone
+CXXFLAGS = -g -IELFIO -lcapstone -lkeystone -I.
 
-harden: disasm.o cfg.o analysis.o reg-alloc.o test.o
+vpath %.cpp countermeasures
+vpath %.h countermeasures
+
+harden: disasm.o cfg.o analysis.o reg-alloc.o test.o eddi.o
 	g++ $^ $(CXXFLAGS) -o $@
+
+eddi.o: eddi.cpp eddi.h
+	g++ -c $(CXXFLAGS) $< -o $@
 
 disasm.o: disasm.cpp disasm.h
 	g++ -c $(CXXFLAGS) $< -o $@
