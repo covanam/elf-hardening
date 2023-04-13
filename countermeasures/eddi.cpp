@@ -32,9 +32,7 @@ static void duplicate_registers(control_flow_graph& cfg) {
 static bool is_sync_point(const vins& in) {
 	if (in.mnemonic.rfind("str", 0) == 0)
 		return true;
-	if (in.is_jump() && !in.cond.empty())
-		return true;
-	if (in.is_function_return())
+	if (in.is_jump())
 		return true;
 	
 	return false;
