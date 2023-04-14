@@ -162,9 +162,9 @@ static void insert_check_store(basic_block& bb, basic_block::iterator pos) {
 
 	ins.push_front(vins::ins_mrs(vreg(31)));
 	ins.push_back(vins::ins_msr(vreg(31)));
+	ins.back().label = label;
 
 	pos->transfer_label(ins.front());
-	pos->label = label;
 
 	bb.splice(pos, ins);
 	bb.splice(pos, duplicate(pos, std::next(pos)));
