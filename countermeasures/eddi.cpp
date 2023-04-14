@@ -32,6 +32,8 @@ static void duplicate_registers(control_flow_graph& cfg) {
 static bool is_sync_point(const vins& in) {
 	if (in.mnemonic.rfind("str", 0) == 0)
 		return true;
+	if (in.mnemonic.rfind("stm", 0) == 0)
+		return true;
 	if (in.is_jump())
 		return true;
 	
@@ -141,16 +143,13 @@ static basic_block duplicate(basic_block::iterator begin, basic_block::iterator 
 	return ins;
 }
 
-template<typename list> static void insert_check_store(
-	basic_block& bb, basic_block::iterator pos,
-	list regs
-) {
+static void insert_check_store(basic_block& bb, basic_block::iterator pos) {
 	static int label_counter = 0;
 
 	basic_block ins;
 	std::string label;
 
-	for (vreg r : regs) {
+	for (vreg r : pos->regs) {
 		vins tmp = vins::ins_mrs(vreg(31));
 		tmp.label = label;
 		ins.push_back(std::move(tmp));
@@ -170,6 +169,7 @@ template<typename list> static void insert_check_store(
 	pos->label = label;
 
 	bb.splice(pos, ins);
+	bb.splice(pos, duplicate(pos, std::next(pos)));
 }
 
 static void insert_check_cond(
@@ -203,10 +203,6 @@ static void insert_check_cond(
 }
 
 void apply_eddi(control_flow_graph& cfg) {
-	int in_start = 0;
-	int in_end = 0;
-	int in_num = -1;
-
 	for (basic_block& bb : cfg) {
 		if (bb.front().is_data())
 			continue;
@@ -220,15 +216,16 @@ void apply_eddi(control_flow_graph& cfg) {
 			while (dup_end != bb.end() && !is_sync_point(*dup_end))
 				++dup_end;
 
-			in_num++;
-
 			bb.splice(dup_start, duplicate(dup_start, dup_end));
 			
 			if (dup_end != bb.end() && is_sync_point(*dup_end)) {
-				if (in_num >= in_start && in_num <= in_end) {
-					if (dup_end->is_jump() && !dup_end->cond.empty())
-						insert_check_cond(bb, dup_end);
-				}
+				if (dup_end->is_jump() && !dup_end->cond.empty())
+					insert_check_cond(bb, dup_end);
+				else if (dup_end->mnemonic.rfind("str", 0) == 0)
+					insert_check_store(bb, dup_end);
+				else if (dup_end->mnemonic.rfind("stm", 0) == 0)
+					insert_check_store(bb, dup_end);
+
 				++dup_end;
 			}
 
