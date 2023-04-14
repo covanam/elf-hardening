@@ -57,21 +57,7 @@ int main(int argc, char *argv[]) {
 
 	control_flow_graph cfg = get_cfg(lift);
 
-	std::cout << "Orig::--------------------------\n";
-	for (auto& bb : cfg) {
-		for (auto& in : bb) {
-			std::cout << std::hex << in.addr << std::dec << ' ' << in << '\n';;
-		}
-	}
-
 	apply_eddi(cfg);
-
-	std::cout << "EDDI::--------------------------\n";
-	for (auto& bb : cfg) {
-		for (auto& in : bb) {
-			std::cout << std::hex << in.addr << std::dec << ' ' << in << '\n';;
-		}
-	}
 
 	allocate_registers(cfg);
 	
