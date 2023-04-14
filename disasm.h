@@ -78,6 +78,10 @@ public:
 	static vins ins_mov(vreg d, vreg s);
 	static vins ins_str(vreg data, vreg addr, int offset);
 	static vins ins_ldr(vreg data, vreg addr, int offset);
+	static vins ins_str_preinc(vreg data, vreg addr, int offset);
+	static vins ins_ldr_preinc(vreg data, vreg addr, int offset);
+	static vins ins_str_postinc(vreg data, vreg addr, int offset);
+	static vins ins_ldr_postinc(vreg data, vreg addr, int offset);
 	static vins ins_str(vreg data, const std::string& label);
 	static vins ins_ldr(vreg data, const std::string& label);
 	static vins ins_return();

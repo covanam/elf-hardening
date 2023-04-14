@@ -677,6 +677,70 @@ vins vins::ins_ldr(vreg data, vreg addr, int offset) {
 	return in;
 }
 
+vins vins::ins_str_preinc(vreg data, vreg addr, int offset) {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+	in.mnemonic = "str";
+	in.operands = "%0, [%1, #" + std::to_string(offset) + "]!";
+	in._is_call = false;
+	in._is_jump = false;
+	in._can_fall_through = true;
+	in._size = 0;
+	in.regs = {data, addr};
+	in.use = {0, 1};
+	in.gen = {1};
+
+	return in;
+}
+
+vins vins::ins_ldr_preinc(vreg data, vreg addr, int offset) {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+	in.mnemonic = "ldr";
+	in.operands = "%0, [%1, #" + std::to_string(offset) + "]!";
+	in._is_call = false;
+	in._is_jump = false;
+	in._can_fall_through = true;
+	in._size = 0;
+	in.regs = {data, addr};
+	in.use = {1};
+	in.gen = {0, 1};
+
+	return in;
+}
+
+vins vins::ins_str_postinc(vreg data, vreg addr, int offset) {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+	in.mnemonic = "str";
+	in.operands = "%0, [%1], #" + std::to_string(offset);
+	in._is_call = false;
+	in._is_jump = false;
+	in._can_fall_through = true;
+	in._size = 0;
+	in.regs = {data, addr};
+	in.use = {0, 1};
+	in.gen = {1};
+
+	return in;
+}
+
+vins vins::ins_ldr_postinc(vreg data, vreg addr, int offset) {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+	in.mnemonic = "ldr";
+	in.operands = "%0, [%1], #" + std::to_string(offset);
+	in._is_call = false;
+	in._is_jump = false;
+	in._can_fall_through = true;
+	in._size = 0;
+	in.regs = {data, addr};
+	in.use = {1};
+	in.gen = {0, 1};
+
+	return in;
+}
+
 vins vins::ins_str(vreg data, const std::string& label) {
 	vins in;
 	in.addr = std::numeric_limits<uint64_t>::max();
