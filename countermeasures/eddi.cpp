@@ -222,8 +222,7 @@ void apply_eddi(control_flow_graph& cfg) {
 
 			in_num++;
 
-			if (in_num >= in_start && in_num <= in_end)
-				bb.splice(dup_start, duplicate(dup_start, dup_end));
+			bb.splice(dup_start, duplicate(dup_start, dup_end));
 			
 			if (dup_end != bb.end() && is_sync_point(*dup_end)) {
 				if (in_num >= in_start && in_num <= in_end) {
