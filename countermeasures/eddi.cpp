@@ -150,20 +150,18 @@ static void insert_check_store(basic_block& bb, basic_block::iterator pos) {
 	std::string label;
 
 	for (vreg r : pos->regs) {
-		vins tmp = vins::ins_mrs(vreg(31));
-		tmp.label = label;
-		ins.push_back(std::move(tmp));
-
 		ins.push_back(vins::ins_cmp(vreg(r.num + 16), r));
+		ins.back().label = label;
 
 		label = ".check_okay_" + std::to_string(label_counter);
 		++label_counter;
 		ins.push_back(vins::ins_b("eq", label.c_str()));
 
 		ins.push_back(vins::ins_udf());
-
-		ins.push_back(vins::ins_msr(vreg(31)));
 	}
+
+	ins.push_front(vins::ins_mrs(vreg(31)));
+	ins.push_back(vins::ins_msr(vreg(31)));
 
 	pos->transfer_label(ins.front());
 	pos->label = label;
