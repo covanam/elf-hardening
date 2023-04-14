@@ -108,11 +108,11 @@ static basic_block duplicate(basic_block::iterator begin, basic_block::iterator 
 				int i = 0;
 				if (dup.mnemonic == "ldm" || dup.mnemonic == "ldm.w")
 					for (auto reg = ++dup.regs.begin(); reg != dup.regs.end(); ++reg) {
-						ins.push_back(vins::ins_ldr_postinc(*reg, dup.regs[0], 4 * i++));
+						ins.push_back(vins::ins_ldr(*reg, dup.regs[0], 4 * i++));
 					}
 				else if (dup.mnemonic == "ldmdb" || dup.mnemonic == "ldmdb.w")
 					for (auto reg = ++dup.regs.begin(); reg != dup.regs.end(); ++reg) {
-						ins.push_back(vins::ins_ldr_preinc(*reg, dup.regs[0], -4 * --i));
+						ins.push_back(vins::ins_ldr(*reg, dup.regs[0], -4 * --i));
 					}
 				else {
 					std::cerr << "Unrecognized instruction: " << dup << '\n';
