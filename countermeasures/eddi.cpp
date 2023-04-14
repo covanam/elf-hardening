@@ -98,8 +98,8 @@ static basic_block duplicate(basic_block::iterator begin, basic_block::iterator 
 	}
 	if (use_flags) {
 		// preserve flags as it is used my original instructions
-	ins.push_front(vins::ins_mrs(vreg(31)));
-	ins.push_back(vins::ins_msr(vreg(31)));
+		ins.push_front(vins::ins_mrs(vreg(31)));
+		ins.push_back(vins::ins_msr(vreg(31)));
 	}
 
 	begin->transfer_label(ins.front());
