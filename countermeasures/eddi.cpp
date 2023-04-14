@@ -75,9 +75,17 @@ static basic_block duplicate(basic_block::iterator begin, basic_block::iterator 
 			}
 		}
 		else if (dup.mnemonic.rfind("stm", 0) == 0) {
-			// #TODO
-			if (in->gen.size()) // this instruction update the address register
-				ins.push_back(vins::ins_add(dup.regs[0], dup.regs[0], 4 * in->regs.size() - 4));;
+			// #TODO should we store twice?
+			if (in->gen.size()) { // this instruction update the address register
+				if (dup.mnemonic == "stm" || dup.mnemonic == "stm.w")
+					ins.push_back(vins::ins_add(dup.regs[0], dup.regs[0], 4 * in->regs.size() - 4));
+				else if (dup.mnemonic == "stmdb" || dup.mnemonic == "stmdb.w")
+					ins.push_back(vins::ins_sub(dup.regs[0], dup.regs[0], 4 * in->regs.size() - 4));
+				else {
+					std::cerr << "Unrecognized instruction: " << dup << '\n';
+					assert(0);
+				}
+			}
 		}
 		else if (dup.mnemonic.rfind("ldm", 0) == 0) {
 			for (auto reg = ++dup.regs.begin(); reg != dup.regs.end(); ++reg) {
