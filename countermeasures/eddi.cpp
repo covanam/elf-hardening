@@ -40,6 +40,14 @@ static bool is_sync_point(const vins& in) {
 	return false;
 }
 
+static vreg duplicate(vreg r) {
+	if (r.num < 15)
+		return vreg(r.num + 16);
+	if (r.num == 15)
+		return r;
+	assert(0);
+}
+
 static basic_block duplicate(basic_block::iterator begin, basic_block::iterator end) {
 	if (begin == end)
 		return {};
@@ -63,8 +71,7 @@ static basic_block duplicate(basic_block::iterator begin, basic_block::iterator 
 		dup.label.clear();
 
 		for (vreg& r : dup.regs) {
-			assert(r.num < 16);
-			r.num += 16;
+			r = duplicate(r);
 		}
 
 		if (dup.mnemonic.rfind("push", 0) == 0) {
@@ -150,7 +157,7 @@ static void insert_check_store(basic_block& bb, basic_block::iterator pos) {
 	std::string label;
 
 	for (vreg r : pos->regs) {
-		ins.push_back(vins::ins_cmp(vreg(r.num + 16), r));
+		ins.push_back(vins::ins_cmp(duplicate(r), r));
 		ins.back().label = label;
 
 		label = ".check_okay_" + std::to_string(label_counter);
