@@ -66,7 +66,7 @@ static basic_block duplicate(basic_block::iterator begin, basic_block::iterator 
 		}
 
 		if (dup.mnemonic.rfind("push", 0) == 0) {
-			// #TODO
+			// #TODO should we push twice?
 			ins.push_back(vins::ins_sub(vreg(29), vreg(29), 4 * in->regs.size()));
 		}
 		else if (dup.mnemonic.rfind("pop", 0) == 0) {
