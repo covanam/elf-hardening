@@ -174,6 +174,7 @@ static void insert_check_store(basic_block& bb, basic_block::iterator pos) {
 	pos->transfer_label(ins.front());
 
 	bb.splice(pos, ins);
+	bb.splice(pos, duplicate(pos, std::next(pos)));
 }
 
 static void insert_check_cond(
@@ -254,6 +255,7 @@ static void insert_check_return_value(basic_block& bb, basic_block::iterator pos
 	pos->transfer_label(ins.front());
 
 	bb.splice(pos, ins);
+	bb.splice(pos, duplicate(pos, std::next(pos)));
 }
 
 void apply_eddi(control_flow_graph& cfg) {
@@ -284,8 +286,6 @@ void apply_eddi(control_flow_graph& cfg) {
 				else if (dup_end->is_function_return()) 
 					insert_check_return_value(bb, dup_end);
 
-				// #TODO: do we really want to duplicate things like bx lr?
-				bb.splice(dup_end, duplicate(dup_end, std::next(dup_end)));
 				++dup_end;
 			}
 
