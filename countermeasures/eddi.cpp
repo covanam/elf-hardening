@@ -206,6 +206,56 @@ static void insert_check_cond(
 	bb.splice(pos, ins);
 }
 
+static void insert_check_arguments(basic_block& bb, basic_block::iterator pos) {
+	static int label_counter = 0;
+
+	basic_block ins;
+	std::string label;
+
+	for (vreg r : {vreg(0), vreg(1), vreg(2), vreg(3)}) {
+		ins.push_back(vins::ins_cmp(duplicate(r), r));
+		ins.back().label = label;
+
+		label = ".check_args_okay_" + std::to_string(label_counter);
+		++label_counter;
+		ins.push_back(vins::ins_b("eq", label.c_str()));
+
+		ins.push_back(vins::ins_udf());
+	}
+
+	ins.push_front(vins::ins_mrs(vreg(31)));
+	ins.push_back(vins::ins_msr(vreg(31)));
+	ins.back().label = label;
+
+	pos->transfer_label(ins.front());
+
+	bb.splice(pos, ins);
+}
+
+static void insert_check_return_value(basic_block& bb, basic_block::iterator pos) {
+	static int label_counter = 0;
+
+	std::string label = ".check_retval_okay_" + std::to_string(label_counter);
+	++label_counter;
+
+	basic_block ins;
+
+	ins.push_back(vins::ins_mrs(vreg(31)));
+
+	ins.push_back(vins::ins_cmp(duplicate(vreg(0)), vreg(0)));
+
+	ins.push_back(vins::ins_b("eq", label.c_str()));
+
+	ins.push_back(vins::ins_udf());
+
+	ins.push_back(vins::ins_msr(vreg(31)));
+	ins.back().label = label;
+
+	pos->transfer_label(ins.front());
+
+	bb.splice(pos, ins);
+}
+
 void apply_eddi(control_flow_graph& cfg) {
 	for (basic_block& bb : cfg) {
 		if (bb.front().is_data())
@@ -229,6 +279,10 @@ void apply_eddi(control_flow_graph& cfg) {
 					insert_check_store(bb, dup_end);
 				else if (dup_end->mnemonic.rfind("stm", 0) == 0)
 					insert_check_store(bb, dup_end);
+				else if (dup_end->is_call() && !dup_end->is_local_call())
+					insert_check_arguments(bb, dup_end);
+				else if (dup_end->is_function_return()) 
+					insert_check_return_value(bb, dup_end);
 
 				// #TODO: do we really want to duplicate things like bx lr?
 				bb.splice(dup_end, duplicate(dup_end, std::next(dup_end)));
