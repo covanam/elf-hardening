@@ -245,14 +245,13 @@ static basic_block duplicate(basic_block::iterator begin, basic_block::iterator 
 
 	bb.splice(pos, ins);
 
-	for (vreg r : {vreg(0), vreg(1)}) {
-		// #TODO should we worry about r2 and r3?
+	for (vreg r : {vreg(0), vreg(1), vreg(2), vreg(3)}) {
 		ins.push_back(vins::ins_mov(duplicate(r), r));
 	}
 
 	bb.splice(std::next(pos), ins);
 
-	return std::next(pos, 3);
+	return std::next(pos, 5);
 }
 
 [[nodiscard]] static basic_block::iterator insert_check_return_value(
