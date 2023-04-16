@@ -4,6 +4,9 @@
 #include "disasm.h"
 #include <cassert>
 
+static const vreg r_preserve_flags = vreg(31);
+static const vreg r_duplicated_flags = vreg(32);
+
 static void duplicate_registers(control_flow_graph& cfg) {
 	for (auto& bb : cfg) {
 		if (bb.front().is_pseudo() && bb.front().operands == "func_entry") {
@@ -137,12 +140,12 @@ static basic_block duplicate(basic_block::iterator begin, basic_block::iterator 
 
 	if (update_flags) {
 		// save it to compare with original later
-		ins.push_back(vins::ins_mrs(vreg(32)));
+		ins.push_back(vins::ins_mrs(r_duplicated_flags));
 	}
 	if (use_flags) {
 		// preserve flags as it is used my original instructions
-		ins.push_front(vins::ins_mrs(vreg(31)));
-		ins.push_back(vins::ins_msr(vreg(31)));
+		ins.push_front(vins::ins_mrs(r_preserve_flags));
+		ins.push_back(vins::ins_msr(r_preserve_flags));
 	}
 
 	begin->transfer_label(ins.front());
@@ -167,8 +170,8 @@ static void insert_check_store(basic_block& bb, basic_block::iterator pos) {
 		ins.push_back(vins::ins_udf());
 	}
 
-	ins.push_front(vins::ins_mrs(vreg(31)));
-	ins.push_back(vins::ins_msr(vreg(31)));
+	ins.push_front(vins::ins_mrs(r_preserve_flags));
+	ins.push_back(vins::ins_msr(r_preserve_flags));
 	ins.back().label = label;
 
 	pos->transfer_label(ins.front());
@@ -187,10 +190,10 @@ static void insert_check_cond(
 	++label_counter;
 
 	// mrs r32, aprs
-	ins.push_back(vins::ins_mrs(vreg(31)));
+	ins.push_back(vins::ins_mrs(r_preserve_flags));
 
 	// cmp r31, r32
-	ins.push_back(vins::ins_cmp(vreg(31), vreg(32)));
+	ins.push_back(vins::ins_cmp(r_preserve_flags, r_duplicated_flags));
 
 	// beq .check_cond_okay_#n
 	ins.push_back(vins::ins_b("eq", label.c_str()));
@@ -199,7 +202,7 @@ static void insert_check_cond(
 	ins.push_back(vins::ins_udf());
 
 	// .check_cond_okay: msr apsr, r32
-	ins.push_back(vins::ins_msr(vreg(31)));
+	ins.push_back(vins::ins_msr(r_preserve_flags));
 	ins.back().label = label;
 
 	pos->transfer_label(ins.front());
@@ -224,8 +227,8 @@ static void insert_check_arguments(basic_block& bb, basic_block::iterator pos) {
 		ins.push_back(vins::ins_udf());
 	}
 
-	ins.push_front(vins::ins_mrs(vreg(31)));
-	ins.push_back(vins::ins_msr(vreg(31)));
+	ins.push_front(vins::ins_mrs(r_preserve_flags));
+	ins.push_back(vins::ins_msr(r_preserve_flags));
 	ins.back().label = label;
 
 	pos->transfer_label(ins.front());
@@ -241,7 +244,7 @@ static void insert_check_return_value(basic_block& bb, basic_block::iterator pos
 
 	basic_block ins;
 
-	ins.push_back(vins::ins_mrs(vreg(31)));
+	ins.push_back(vins::ins_mrs(r_preserve_flags));
 
 	ins.push_back(vins::ins_cmp(duplicate(vreg(0)), vreg(0)));
 
@@ -249,7 +252,7 @@ static void insert_check_return_value(basic_block& bb, basic_block::iterator pos
 
 	ins.push_back(vins::ins_udf());
 
-	ins.push_back(vins::ins_msr(vreg(31)));
+	ins.push_back(vins::ins_msr(r_preserve_flags));
 	ins.back().label = label;
 
 	pos->transfer_label(ins.front());
