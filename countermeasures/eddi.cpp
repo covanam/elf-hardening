@@ -258,7 +258,17 @@ static void insert_check_return_value(basic_block& bb, basic_block::iterator pos
 	pos->transfer_label(ins.front());
 
 	bb.splice(pos, ins);
-	bb.splice(pos, duplicate(pos, std::next(pos)));
+	if (pos->mnemonic == "ldr" || pos->mnemonic == "ldr.w") {
+		assert(pos->regs.size() == 2);
+		assert(pos->regs[0].num == 15);
+		assert(pos->regs[1].num == 13);
+		assert(pos->imm() == 4);
+		assert(pos->operands == "%0, [%1], #%i");
+		bb.insert(pos, vins::ins_add(duplicate(vreg(13)), duplicate(vreg(13)), 4));
+	}
+	else if (pos->mnemonic == "pop" || pos->mnemonic == "pop.w") {
+		bb.insert(pos, vins::ins_add(duplicate(vreg(13)), duplicate(vreg(13)), 4 * pos->regs.size()));
+	}
 }
 
 void apply_eddi(control_flow_graph& cfg) {
