@@ -83,7 +83,10 @@ static basic_block duplicate(basic_block::iterator begin, basic_block::iterator 
 		}
 		else if (dup.mnemonic.rfind("pop", 0) == 0) {
 			for (auto reg = ++dup.regs.begin(); reg != dup.regs.end(); ++reg) {
-				ins.push_back(vins::ins_ldr_postinc(*reg, vreg(29), 4));
+				if (reg->num != 15)
+					ins.push_back(vins::ins_ldr_postinc(*reg, vreg(29), 4));
+				else
+					ins.push_back(vins::ins_add(vreg(29), vreg(29), 4));
 			}
 		}
 		else if (dup.mnemonic.rfind("stm", 0) == 0) {
@@ -288,7 +291,7 @@ static basic_block duplicate(basic_block::iterator begin, basic_block::iterator 
 		bb.insert(pos, vins::ins_add(duplicate(vreg(13)), duplicate(vreg(13)), 4));
 	}
 	else if (pos->mnemonic == "pop" || pos->mnemonic == "pop.w") {
-		bb.insert(pos, vins::ins_add(duplicate(vreg(13)), duplicate(vreg(13)), 4 * pos->regs.size()));
+		bb.splice(pos, duplicate(pos, std::next(pos)));
 	}
 
 	return std::next(pos);
