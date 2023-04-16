@@ -49,9 +49,6 @@ static void get_unused_variables_interference(
 
 	for (auto in = bb.begin(); in != bb.end(); ++in) {
 		for (auto reg : in->regs) {
-			if (rig.find(reg) != rig.end())
-				continue;
-
 			std::set<vreg> overwritten;
 
 			if (std::next(in) == bb.end()) {
