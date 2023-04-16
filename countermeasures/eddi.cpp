@@ -153,7 +153,10 @@ static basic_block duplicate(basic_block::iterator begin, basic_block::iterator 
 	return ins;
 }
 
-static void insert_check_store(basic_block& bb, basic_block::iterator pos) {
+[[nodiscard]] static basic_block::iterator insert_check_store(
+	basic_block& bb,
+	basic_block::iterator pos
+) {
 	static int label_counter = 0;
 
 	basic_block ins;
@@ -178,9 +181,11 @@ static void insert_check_store(basic_block& bb, basic_block::iterator pos) {
 
 	bb.splice(pos, ins);
 	bb.splice(pos, duplicate(pos, std::next(pos)));
+
+	return std::next(pos);
 }
 
-static void insert_check_cond(
+[[nodiscard]] static basic_block::iterator insert_check_cond(
 	basic_block& bb, basic_block::iterator pos
 ) {
 	static int label_counter = 0;
@@ -208,9 +213,14 @@ static void insert_check_cond(
 	pos->transfer_label(ins.front());
 
 	bb.splice(pos, ins);
+
+	return std::next(pos);
 }
 
-static void insert_check_arguments(basic_block& bb, basic_block::iterator pos) {
+[[nodiscard]] static basic_block::iterator insert_check_arguments(
+	basic_block& bb,
+	basic_block::iterator pos
+) {
 	static int label_counter = 0;
 
 	basic_block ins;
@@ -241,9 +251,14 @@ static void insert_check_arguments(basic_block& bb, basic_block::iterator pos) {
 	}
 
 	bb.splice(std::next(pos), ins);
+
+	return std::next(pos, 3);
 }
 
-static void insert_check_return_value(basic_block& bb, basic_block::iterator pos) {
+[[nodiscard]] static basic_block::iterator insert_check_return_value(
+	basic_block& bb,
+	basic_block::iterator pos
+) {
 	static int label_counter = 0;
 
 	std::string label = ".check_retval_okay_" + std::to_string(label_counter);
@@ -276,6 +291,8 @@ static void insert_check_return_value(basic_block& bb, basic_block::iterator pos
 	else if (pos->mnemonic == "pop" || pos->mnemonic == "pop.w") {
 		bb.insert(pos, vins::ins_add(duplicate(vreg(13)), duplicate(vreg(13)), 4 * pos->regs.size()));
 	}
+
+	return std::next(pos);
 }
 
 void apply_eddi(control_flow_graph& cfg) {
@@ -296,17 +313,17 @@ void apply_eddi(control_flow_graph& cfg) {
 			
 			if (dup_end != bb.end() && is_sync_point(*dup_end)) {
 				if (dup_end->is_jump() && !dup_end->cond.empty())
-					insert_check_cond(bb, dup_end);
+					dup_end = insert_check_cond(bb, dup_end);
 				else if (dup_end->mnemonic.rfind("str", 0) == 0)
-					insert_check_store(bb, dup_end);
+					dup_end = insert_check_store(bb, dup_end);
 				else if (dup_end->mnemonic.rfind("stm", 0) == 0)
-					insert_check_store(bb, dup_end);
+					dup_end = insert_check_store(bb, dup_end);
 				else if (dup_end->is_call() && !dup_end->is_local_call())
-					insert_check_arguments(bb, dup_end);
+					dup_end = insert_check_arguments(bb, dup_end);
 				else if (dup_end->is_function_return()) 
-					insert_check_return_value(bb, dup_end);
-
-				++dup_end;
+					dup_end = insert_check_return_value(bb, dup_end);
+				else
+					++dup_end;
 			}
 
 			dup_start = dup_end;
