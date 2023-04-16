@@ -82,7 +82,7 @@ static basic_block duplicate(basic_block::iterator begin, basic_block::iterator 
 			ins.push_back(vins::ins_sub(vreg(29), vreg(29), 4 * in->regs.size()));
 		}
 		else if (dup.mnemonic.rfind("pop", 0) == 0) {
-			for (auto reg = ++dup.regs.begin(); reg != dup.regs.end(); ++reg) {
+			for (auto reg = dup.regs.begin(); reg != dup.regs.end(); ++reg) {
 				if (reg->num != 15)
 					ins.push_back(vins::ins_ldr_postinc(*reg, vreg(29), 4));
 				else
