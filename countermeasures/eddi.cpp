@@ -234,6 +234,13 @@ static void insert_check_arguments(basic_block& bb, basic_block::iterator pos) {
 	pos->transfer_label(ins.front());
 
 	bb.splice(pos, ins);
+
+	for (vreg r : {vreg(0), vreg(1)}) {
+		// #TODO should we worry about r2 and r3?
+		ins.push_back(vins::ins_mov(duplicate(r), r));
+	}
+
+	bb.splice(std::next(pos), ins);
 }
 
 static void insert_check_return_value(basic_block& bb, basic_block::iterator pos) {
