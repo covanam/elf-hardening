@@ -1350,7 +1350,7 @@ void lifter::add_second_stack_addresses() {
 			sstack_label = ".second_stack_" + std::to_string(label_count);
 			auto insert_pos = in.base();
 			if (insert_pos->label.empty()) {
-				insert_pos->label = ".jump_over_data_" + std::to_string(label_count);
+				insert_pos->label = ".jump_over_second_stack_" + std::to_string(label_count);
 			}
 
 			instructions.insert(insert_pos, vins::ins_b("", insert_pos->label.c_str()));
@@ -1363,6 +1363,73 @@ void lifter::add_second_stack_addresses() {
 			in->target_label = sstack_label;
 	}
 }
+
+[[nodiscard]] vins lifter::duplicate_data(vins data) {
+	if (data.rel == -1)
+		return data;
+
+	string_section_accessor str_writer(str_sec);
+	symbol_section_accessor sym_writer(reader, sym_sec);
+	relocation_section_accessor rel_writer(reader, rel_sec);
+
+	Elf64_Addr offset;
+	Elf_Word symbol;
+	unsigned type;
+	Elf_Sxword addend;
+	rel_writer.get_entry(
+		data.rel,
+		offset,
+		symbol,
+		type,
+		addend);
+
+	assert(addend == 0);
+
+	rel_writer.add_entry(offset, symbol, type);
+
+	data.rel = rel_writer.get_entries_num() - 1;
+
+	return data;
+}
+
+void lifter::move_data_closer() {
+	int dup_count = 0;
+
+	for (auto i = instructions.begin(); i != instructions.end(); ++i) {
+		if (i->mnemonic.rfind("str", 0) != 0 && i->mnemonic.rfind("ldr", 0) != 0)
+			continue;
+		
+		if (i->target_label.empty())
+			continue;
+
+		int distance = 0;
+
+		decltype(i) j;
+		for (j = std::next(i); j != instructions.end(); ++j) {
+			distance += 4;
+			if (j->label == i->target_label)
+				break;
+		}
+
+		assert(j != instructions.end());
+
+		if (distance > 1024) {
+			auto next = std::next(i);
+			if (next->label.empty())
+				next->label = ".jump_over_data_" + std::to_string(dup_count);
+
+			vins dup_data = duplicate_data(*j);
+			i->target_label = dup_data.label + "_dup_data_" + std::to_string(dup_count);
+			dup_data.label = i->target_label;
+
+			instructions.insert(next, vins::ins_b("", next->label.c_str()));
+			instructions.insert(next, std::move(dup_data));
+	
+			dup_count++;
+		}
+	}
+}
+
 
 void lifter::save(std::string file) {
 	if(!text_sec) {
@@ -1379,6 +1446,8 @@ void lifter::save(std::string file) {
 			instructions.insert(in, std::move(tmp));
 		}
 	}
+
+	move_data_closer();
 
 	std::stringstream assembly;
 

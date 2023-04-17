@@ -148,6 +148,9 @@ private:
 		const std::string& label
 	);
 	void add_second_stack_addresses();
+	[[nodiscard]] vins duplicate_data(vins);
+	void move_data_closer();
+
 	ELFIO::elfio reader;
 	ELFIO::section *sym_sec;
 	ELFIO::section *rel_sec;
