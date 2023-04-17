@@ -48,7 +48,8 @@ static void get_unused_variables_interference(
 	bb.visited = true;
 
 	for (auto in = bb.begin(); in != bb.end(); ++in) {
-		for (auto reg : in->regs) {
+		for (unsigned i : in->gen) {
+			vreg reg = in->regs[i];
 			std::set<vreg> overwritten;
 
 			if (std::next(in) == bb.end()) {
