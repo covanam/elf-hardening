@@ -965,9 +965,9 @@ vins vins::function_entry() {
 	in.operands = "func_entry";
 
 	in.regs = {vreg(0), vreg(1), vreg(2), vreg(3), vreg(4), vreg(5), vreg(6),
-		vreg(7), vreg(8), vreg(9), vreg(10), vreg(11), vreg(13), vreg(14),
-		vreg(15)};
-	in.gen = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14};
+		vreg(7), vreg(8), vreg(9), vreg(10), vreg(11), vreg(12), vreg(13),
+		vreg(14), vreg(15)};
+	in.gen = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
 
 	in._is_call = false;
 	in._is_jump = false;
@@ -984,8 +984,9 @@ vins vins::function_exit() {
 
 	in.regs = {vreg(0), vreg(1), vreg(2), vreg(3), vreg(4), vreg(5), vreg(6),
 		vreg(7), vreg(8), vreg(9), vreg(10), vreg(11), vreg(13), vreg(14),
-		vreg(15)};
+		vreg(15), vreg(12)};
 	in.use = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14};
+	in.gen = {15};
 
 	in._is_call = false;
 	in._is_jump = false;
@@ -1604,9 +1605,9 @@ static void add_call_registers(std::list<vins>& instructions) {
 	for (auto& in : instructions) {
 		if (in.is_call() && !in.is_local_call()) {
 			in.regs = {vreg(0), vreg(1), vreg(2), vreg(3), vreg(0),
-				vreg(1), vreg(2), vreg(3)};
+				vreg(1), vreg(2), vreg(3), vreg(12)};
 			in.use = {0, 1, 2, 3};
-			in.gen = {4, 5, 6, 7};
+			in.gen = {4, 5, 6, 7, 8};
 		}
 	}
 }
