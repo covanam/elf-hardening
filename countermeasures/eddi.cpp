@@ -51,7 +51,7 @@ static vreg duplicate(vreg r) {
 	assert(0);
 }
 
-static basic_block duplicate(basic_block::iterator begin, basic_block::iterator end) {
+static basic_block duplicate(lifter& lift, basic_block::iterator begin, basic_block::iterator end) {
 	if (begin == end)
 		return {};
 
@@ -70,7 +70,7 @@ static basic_block duplicate(basic_block::iterator begin, basic_block::iterator 
 		if (in->update_flags())
 			update_flags = true;
 
-		vins dup = *in;
+		vins dup = lift.duplicate(*in);
 		dup.label.clear();
 
 		for (vreg& r : dup.regs) {
@@ -157,6 +157,7 @@ static basic_block duplicate(basic_block::iterator begin, basic_block::iterator 
 }
 
 [[nodiscard]] static basic_block::iterator insert_check_store(
+	lifter& lift,
 	basic_block& bb,
 	basic_block::iterator pos
 ) {
@@ -183,7 +184,7 @@ static basic_block duplicate(basic_block::iterator begin, basic_block::iterator 
 	pos->transfer_label(ins.front());
 
 	bb.splice(pos, ins);
-	bb.splice(pos, duplicate(pos, std::next(pos)));
+	bb.splice(pos, duplicate(lift, pos, std::next(pos)));
 
 	return std::next(pos);
 }
@@ -258,6 +259,7 @@ static basic_block duplicate(basic_block::iterator begin, basic_block::iterator 
 }
 
 [[nodiscard]] static basic_block::iterator insert_check_return_value(
+	lifter& lift,
 	basic_block& bb,
 	basic_block::iterator pos
 ) {
@@ -291,13 +293,13 @@ static basic_block duplicate(basic_block::iterator begin, basic_block::iterator 
 		bb.insert(pos, vins::ins_add(duplicate(vreg(13)), duplicate(vreg(13)), 4));
 	}
 	else if (pos->mnemonic == "pop" || pos->mnemonic == "pop.w") {
-		bb.splice(pos, duplicate(pos, std::next(pos)));
+		bb.splice(pos, duplicate(lift, pos, std::next(pos)));
 	}
 
 	return std::next(pos);
 }
 
-void apply_eddi(control_flow_graph& cfg) {
+void apply_eddi(lifter& lift, control_flow_graph& cfg) {
 	for (basic_block& bb : cfg) {
 		if (bb.front().is_data())
 			continue;
@@ -311,19 +313,19 @@ void apply_eddi(control_flow_graph& cfg) {
 			while (dup_end != bb.end() && !is_sync_point(*dup_end))
 				++dup_end;
 
-			bb.splice(dup_start, duplicate(dup_start, dup_end));
+			bb.splice(dup_start, duplicate(lift, dup_start, dup_end));
 			
 			if (dup_end != bb.end() && is_sync_point(*dup_end)) {
 				if (dup_end->is_jump() && !dup_end->cond.empty())
 					dup_end = insert_check_cond(bb, dup_end);
 				else if (dup_end->mnemonic.rfind("str", 0) == 0)
-					dup_end = insert_check_store(bb, dup_end);
+					dup_end = insert_check_store(lift, bb, dup_end);
 				else if (dup_end->mnemonic.rfind("stm", 0) == 0)
-					dup_end = insert_check_store(bb, dup_end);
+					dup_end = insert_check_store(lift, bb, dup_end);
 				else if (dup_end->is_call() && !dup_end->is_local_call())
 					dup_end = insert_check_arguments(bb, dup_end);
 				else if (dup_end->is_function_return()) 
-					dup_end = insert_check_return_value(bb, dup_end);
+					dup_end = insert_check_return_value(lift, bb, dup_end);
 				else
 					++dup_end;
 			}
