@@ -1364,9 +1364,9 @@ void lifter::add_second_stack_addresses() {
 	}
 }
 
-[[nodiscard]] vins lifter::duplicate_data(vins data) {
-	if (data.rel == -1)
-		return data;
+[[nodiscard]] vins lifter::duplicate(vins in) {
+	if (in.rel == -1)
+		return in;
 
 	string_section_accessor str_writer(str_sec);
 	symbol_section_accessor sym_writer(reader, sym_sec);
@@ -1377,7 +1377,7 @@ void lifter::add_second_stack_addresses() {
 	unsigned type;
 	Elf_Sxword addend;
 	rel_writer.get_entry(
-		data.rel,
+		in.rel,
 		offset,
 		symbol,
 		type,
@@ -1387,9 +1387,9 @@ void lifter::add_second_stack_addresses() {
 
 	rel_writer.add_entry(offset, symbol, type);
 
-	data.rel = rel_writer.get_entries_num() - 1;
+	in.rel = rel_writer.get_entries_num() - 1;
 
-	return data;
+	return in;
 }
 
 void lifter::move_data_closer() {
@@ -1418,7 +1418,7 @@ void lifter::move_data_closer() {
 			if (next->label.empty())
 				next->label = ".jump_over_data_" + std::to_string(dup_count);
 
-			vins dup_data = duplicate_data(*j);
+			vins dup_data = duplicate(*j);
 			i->target_label = dup_data.label + "_dup_data_" + std::to_string(dup_count);
 			dup_data.label = i->target_label;
 

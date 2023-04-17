@@ -139,6 +139,7 @@ public:
 
 	std::set<std::string> functions;
 
+	[[nodiscard]] vins duplicate(vins);
 private:
 	void add_labels_from_symbol_table();
 	void add_target_labels(); 
@@ -148,7 +149,6 @@ private:
 		const std::string& label
 	);
 	void add_second_stack_addresses();
-	[[nodiscard]] vins duplicate_data(vins);
 	void move_data_closer();
 
 	ELFIO::elfio reader;
