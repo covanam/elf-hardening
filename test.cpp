@@ -57,7 +57,7 @@ int main(int argc, char *argv[]) {
 
 	control_flow_graph cfg = get_cfg(lift);
 
-	apply_eddi(cfg);
+	apply_eddi(lift, cfg);
 
 	allocate_registers(cfg);
 	
