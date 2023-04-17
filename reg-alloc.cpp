@@ -797,6 +797,8 @@ static void spill(control_flow_graph& cfg) {
 			if (regs.empty())
 				continue;
 
+			std::string cond = in->cond;
+
 			if (in->is_pseudo() && in->operands == "func_entry") {
 				assert(use_regs.empty());
 				auto pos = std::next(in);
@@ -804,6 +806,8 @@ static void spill(control_flow_graph& cfg) {
 					if (r.num == 11)
 						continue;
 					vins tmp = vins::ins_str(vreg(r.num), vreg(11), -4 - 4 * r.spill_slot);
+					tmp.cond = cond;
+					tmp.mnemonic.append(cond);
 					bb.insert(pos, std::move(tmp));
 				}
 			}
@@ -818,6 +822,8 @@ static void spill(control_flow_graph& cfg) {
 						r.num = 14; // lr
 
 						vins tmp = vins::ins_return();
+						tmp.cond = cond;
+						tmp.mnemonic.append(cond);
 						bb.insert(std::prev(bb.end()), std::move(tmp));
 					}
 				}
@@ -830,6 +836,8 @@ static void spill(control_flow_graph& cfg) {
 						continue;
 					vins tmp = vins::ins_ldr(vreg(r.num), vreg(11), -4 - 4 * r.spill_slot);
 					pos->transfer_label(tmp);
+					tmp.cond = cond;
+					tmp.mnemonic.append(cond);
 					bb.insert(pos, std::move(tmp));
 				}
 			}
@@ -841,6 +849,8 @@ static void spill(control_flow_graph& cfg) {
 							r.num = 14; // lr
 
 							vins tmp = vins::ins_return();
+							tmp.cond = cond;
+							tmp.mnemonic.append(cond);
 							bb.insert(std::next(in), std::move(tmp));
 						}
 					}
@@ -872,32 +882,48 @@ static void spill(control_flow_graph& cfg) {
 
 					tmp = vins::push_second_stack<std::initializer_list<vreg>>({stack_ptr});
 					in->transfer_label(tmp);
+					tmp.cond = cond;
+					tmp.mnemonic.append(cond);
 					bb.insert(in, std::move(tmp));
 
 					tmp = vins::ins_mov(stack_ptr, vreg(11));
+					tmp.cond = cond;
+					tmp.mnemonic.append(cond);
 					bb.insert(in, std::move(tmp));
 
 					tmp = vins::stmia(stack_ptr, regs);
+					tmp.cond = cond;
+					tmp.mnemonic.append(cond);
 					bb.insert(in, std::move(tmp));
 
 					for (vreg r : use_regs) {
 						tmp = vins::ins_ldr(vreg(r.num), stack_ptr, -8 - 4 * (r.spill_slot + regs.size()));
+						tmp.cond = cond;
+						tmp.mnemonic.append(cond);
 						bb.insert(in, std::move(tmp));
 					}
 
 					auto pos = std::next(in);
 					for (vreg r : def_regs) {
 						tmp = vins::ins_str(vreg(r.num), stack_ptr, -8 - 4 * (r.spill_slot + regs.size()));
+						tmp.cond = cond;
+						tmp.mnemonic.append(cond);
 						bb.insert(pos, std::move(tmp));
 					}
 
 					tmp = vins::ldmdb(stack_ptr, regs);
+					tmp.cond = cond;
+					tmp.mnemonic.append(cond);
 					bb.insert(pos, std::move(tmp));
 
 					tmp = vins::ins_mov(vreg(11), stack_ptr);
+					tmp.cond = cond;
+					tmp.mnemonic.append(cond);
 					bb.insert(pos, std::move(tmp));
 
 					tmp = vins::pop_second_stack<std::initializer_list<vreg>>({stack_ptr});
+					tmp.cond = cond;
+					tmp.mnemonic.append(cond);
 					bb.insert(pos, std::move(tmp));
 
 					push_table.insert({&*in, {stack_ptr, 4 + 4 * regs.size()}});
@@ -907,19 +933,27 @@ static void spill(control_flow_graph& cfg) {
 					if (regs.size()) {
 						tmp = vins::push_second_stack(regs);
 						in->transfer_label(tmp);
+						tmp.cond = cond;
+						tmp.mnemonic.append(cond);
 						bb.insert(in, std::move(tmp));
 					}
 					for (vreg r : use_regs) {
 						tmp = vins::ins_ldr(vreg(r.num), vreg(11), -4 - 4 * (r.spill_slot + regs.size()));
+						tmp.cond = cond;
+						tmp.mnemonic.append(cond);
 						bb.insert(in, std::move(tmp));
 					}
 					auto pos = std::next(in);
 					for (vreg r : def_regs) {
 						tmp = vins::ins_str(vreg(r.num), vreg(11), -4 - 4 * (r.spill_slot + regs.size()));
+						tmp.cond = cond;
+						tmp.mnemonic.append(cond);
 						bb.insert(pos, std::move(tmp));
 					}
 					if (regs.size()) {
 						tmp = vins::pop_second_stack(regs);
+						tmp.cond = cond;
+						tmp.mnemonic.append(cond);
 						bb.insert(pos, std::move(tmp));
 					}
 
@@ -969,6 +1003,8 @@ static void spill(control_flow_graph& cfg) {
 			if (reg_map.size() == 0)
 				continue;
 
+			std::string cond = in->cond;
+
 			auto pre_push = push_table.find(&*in);
 			vreg stack_ptr;
 			int stack_off;
@@ -1005,8 +1041,13 @@ static void spill(control_flow_graph& cfg) {
 
 				vins push_ins = vins::stmia(stack_ptr, to_stack);
 				in->transfer_label(push_ins);
+				push_ins.cond = cond;
+				push_ins.mnemonic.append(cond);
 				bb.insert(in, std::move(push_ins));
-				bb.insert(std::next(in), vins::ldmdb(stack_ptr, to_stack));
+				vins pop_ins = vins::ldmdb(stack_ptr, to_stack);
+				pop_ins.cond = cond;
+				pop_ins.mnemonic.append(cond);
+				bb.insert(std::next(in), std::move(pop_ins));
 				free_regs.insert(free_regs.end(), to_stack.begin(), to_stack.end());
 			}
 
@@ -1026,6 +1067,8 @@ static void spill(control_flow_graph& cfg) {
 						-stack_off - 4 -
 						4 * (in->regs[i].spill_slot + to_stack.size()));
 					in->transfer_label(tmp);
+					tmp.mnemonic.append(cond);
+					tmp.cond = cond;
 					bb.insert(in, std::move(tmp));
 				}
 			}
@@ -1038,6 +1081,8 @@ static void spill(control_flow_graph& cfg) {
 								r.num = 14; // lr
 
 								vins tmp = vins::ins_return();
+								tmp.cond = cond;
+								tmp.mnemonic.append(cond);
 								bb.insert(std::next(in), std::move(tmp));
 							}
 						}
@@ -1049,6 +1094,8 @@ static void spill(control_flow_graph& cfg) {
 						r, stack_ptr,
 						-stack_off - 4 -
 						4 * (in->regs[i].spill_slot + to_stack.size()));
+					tmp.cond = cond;
+					tmp.mnemonic.append(cond);
 					bb.insert(std::next(in), std::move(tmp));
 				}
 			}
