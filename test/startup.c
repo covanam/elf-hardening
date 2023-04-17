@@ -46,12 +46,7 @@ void Reset_Handler(void)
 	}
 }
 
-void Default_Handler(void)
-{
-	while (1) {
-		/* freeze */
-	}
-}
+#define Default_Handler() while (1) { __asm("wfi"); }			
 
 __attribute__((weak)) void NMI_Handler(void)
 {

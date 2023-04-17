@@ -5,6 +5,7 @@
 #include "analysis.h"
 #include "reg-alloc.h"
 #include <iomanip>
+#include "countermeasures/eddi.h"
 
 int fastrand() { 
 	static int g_seed;
@@ -56,33 +57,7 @@ int main(int argc, char *argv[]) {
 
 	control_flow_graph cfg = get_cfg(lift);
 
-	int bb_from = 0;
-	int bb_to = 5000;
-	int bb_count = 0;
-
-	for (auto& bb : cfg) {
-		if (bb.front().is_data())
-			continue;
-
-		if (lift.functions.find(bb.front().label) != lift.functions.end()) {
-			vins tmp = vins::ins_mov(vreg(17), 321);
-			bb.insert(std::next(bb.begin()), std::move(tmp));
-		}
-
-		for (auto in = bb.begin(); in != bb.end();) {
-			if (in->is_pseudo() || !in->label.empty()) {
-				++in;
-				continue;
-			}
-			auto next = std::next(in);
-			if (bb_count >= bb_from && bb_count <= bb_to) {
-				vins tmp = vins::ins_add(vreg(17), vreg(17), 99);
-				bb.insert(in, std::move(tmp));
-			}
-			++bb_count;
-			in = next;
-		}
-	}
+	apply_eddi(cfg);
 
 	allocate_registers(cfg);
 	

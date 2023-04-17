@@ -69,6 +69,7 @@ public:
 	vins(const cs_insn &in);
 	vins(uint8_t data, uint64_t addr);
 	static vins ins_cmp(vreg r, int imm);
+	static vins ins_cmp(vreg r1, vreg r2);
 	static vins ins_b(const char *condition, const char *label);
 	static vins ins_add(vreg d, vreg r1, vreg r2);
 	static vins ins_add(vreg d, vreg r, int imm);
@@ -77,10 +78,17 @@ public:
 	static vins ins_mov(vreg d, vreg s);
 	static vins ins_str(vreg data, vreg addr, int offset);
 	static vins ins_ldr(vreg data, vreg addr, int offset);
+	static vins ins_str_preinc(vreg data, vreg addr, int offset);
+	static vins ins_ldr_preinc(vreg data, vreg addr, int offset);
+	static vins ins_str_postinc(vreg data, vreg addr, int offset);
+	static vins ins_ldr_postinc(vreg data, vreg addr, int offset);
 	static vins ins_str(vreg data, const std::string& label);
 	static vins ins_ldr(vreg data, const std::string& label);
 	static vins ins_return();
 	static vins ins_arm_it(const char* cond);
+	static vins ins_udf();
+	static vins ins_msr(vreg r);
+	static vins ins_mrs(vreg r);
 	template<class list> static vins push_second_stack(const list& regs);
 	template<class list> static vins pop_second_stack(const list& regs);
 	template<class list> static vins stmia(vreg addr, const list& regs);
@@ -140,6 +148,9 @@ private:
 		const std::string& label
 	);
 	void add_second_stack_addresses();
+	[[nodiscard]] vins duplicate_data(vins);
+	void move_data_closer();
+
 	ELFIO::elfio reader;
 	ELFIO::section *sym_sec;
 	ELFIO::section *rel_sec;

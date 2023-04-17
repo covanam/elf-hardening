@@ -492,7 +492,64 @@ vins vins::ins_cmp(vreg r, int imm) {
 	in._is_call = false;
 	in._is_jump = false;
 	in._can_fall_through = true;
+	in._update_flags = true;
 	in._size = 0;
+	return in;
+}
+
+vins vins::ins_cmp(vreg r1, vreg r2) {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+	in.mnemonic = "cmp";
+	in.operands = "%0, %1";
+	in.regs = {r1, r2};
+	in.use = {0, 1};
+	in._is_call = false;
+	in._is_jump = false;
+	in._can_fall_through = true;
+	in._update_flags = true;
+	in._size = 0;
+	return in;
+}
+
+vins vins::ins_udf() {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+	in.mnemonic = "udf";
+	in.operands = "#0";
+	in._is_call = false;
+	in._is_jump = false;
+	in._can_fall_through = false;
+	in._size = 0;
+	return in;
+}
+
+vins vins::ins_msr(vreg r) {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+	in.mnemonic = "msr";
+	in.operands = "apsr, %0";
+	in._is_call = false;
+	in._is_jump = false;
+	in._can_fall_through = true;
+	in._update_flags = true;
+	in._size = 0;
+	in.regs = {r};
+	in.use = {0};
+	return in;
+}
+vins vins::ins_mrs(vreg r) {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+	in.mnemonic = "mrs";
+	in.operands = "%0, apsr";
+	in._is_call = false;
+	in._is_jump = false;
+	in._can_fall_through = true;
+	in._use_carry = true; // #TODO
+	in._size = 0;
+	in.regs = {r};
+	in.gen = {0};
 	return in;
 }
 
@@ -501,6 +558,7 @@ vins vins::ins_b(const char *condition, const char *label) {
 	in.addr = std::numeric_limits<uint64_t>::max();
 	in.mnemonic = std::string("b") + condition;
 	in.operands = "%m";
+	in.cond = condition;
 	in.target_label = label;
 	in._is_call = false;
 	in._is_jump = true;
@@ -615,6 +673,70 @@ vins vins::ins_ldr(vreg data, vreg addr, int offset) {
 	in.regs = {data, addr};
 	in.use = {1};
 	in.gen = {0};
+
+	return in;
+}
+
+vins vins::ins_str_preinc(vreg data, vreg addr, int offset) {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+	in.mnemonic = "str";
+	in.operands = "%0, [%1, #" + std::to_string(offset) + "]!";
+	in._is_call = false;
+	in._is_jump = false;
+	in._can_fall_through = true;
+	in._size = 0;
+	in.regs = {data, addr};
+	in.use = {0, 1};
+	in.gen = {1};
+
+	return in;
+}
+
+vins vins::ins_ldr_preinc(vreg data, vreg addr, int offset) {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+	in.mnemonic = "ldr";
+	in.operands = "%0, [%1, #" + std::to_string(offset) + "]!";
+	in._is_call = false;
+	in._is_jump = false;
+	in._can_fall_through = true;
+	in._size = 0;
+	in.regs = {data, addr};
+	in.use = {1};
+	in.gen = {0, 1};
+
+	return in;
+}
+
+vins vins::ins_str_postinc(vreg data, vreg addr, int offset) {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+	in.mnemonic = "str";
+	in.operands = "%0, [%1], #" + std::to_string(offset);
+	in._is_call = false;
+	in._is_jump = false;
+	in._can_fall_through = true;
+	in._size = 0;
+	in.regs = {data, addr};
+	in.use = {0, 1};
+	in.gen = {1};
+
+	return in;
+}
+
+vins vins::ins_ldr_postinc(vreg data, vreg addr, int offset) {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+	in.mnemonic = "ldr";
+	in.operands = "%0, [%1], #" + std::to_string(offset);
+	in._is_call = false;
+	in._is_jump = false;
+	in._can_fall_through = true;
+	in._size = 0;
+	in.regs = {data, addr};
+	in.use = {1};
+	in.gen = {0, 1};
 
 	return in;
 }
@@ -946,6 +1068,9 @@ void vins::transfer_label(vins& in) {
 }
 
 std::ostream& operator<<(std::ostream& os, vreg r) {
+	if (r.spill_slot >= 0)
+		return os << 's' << r.spill_slot;
+
 	switch(r.num) {
 		case 9:
 			return os << "sb";
@@ -962,8 +1087,6 @@ std::ostream& operator<<(std::ostream& os, vreg r) {
 		case 15:
 			return os << "pc";
 		default:
-			if (r.spill_slot >= 0)
-				return os << 's' << r.spill_slot;
 			if (r.num < 9)
 				return os << 'r' << r.num;
 			return os << 'v' << r.num - 16;
@@ -971,11 +1094,13 @@ std::ostream& operator<<(std::ostream& os, vreg r) {
 }
 
 std::ostream& operator<<(std::ostream& os, const vins &b) {
+	static int reloc_label_counter = 0;
+
 	if (b.label.length()) {
 		os << b.label << ": ";
 	} else if (b.rel >= 0) {
 		if (b.label.empty())
-			os << ".reloc" << b.addr << ": "; // b.addr should be unique
+			os << ".reloc" << reloc_label_counter << ": ";
 		else
 			os << b.target_label;
 	}
@@ -987,7 +1112,7 @@ std::ostream& operator<<(std::ostream& os, const vins &b) {
 			if (b.operands[i] == 'm') {
 				if (b.rel >= 0) {
 					if (b.label.empty())
-						os << ".reloc" << b.addr;
+						os << ".reloc" << reloc_label_counter++;
 					else
 						os << b.label;
 				} else {
@@ -1225,7 +1350,7 @@ void lifter::add_second_stack_addresses() {
 			sstack_label = ".second_stack_" + std::to_string(label_count);
 			auto insert_pos = in.base();
 			if (insert_pos->label.empty()) {
-				insert_pos->label = ".jump_over_data_" + std::to_string(label_count);
+				insert_pos->label = ".jump_over_second_stack_" + std::to_string(label_count);
 			}
 
 			instructions.insert(insert_pos, vins::ins_b("", insert_pos->label.c_str()));
@@ -1238,6 +1363,73 @@ void lifter::add_second_stack_addresses() {
 			in->target_label = sstack_label;
 	}
 }
+
+[[nodiscard]] vins lifter::duplicate_data(vins data) {
+	if (data.rel == -1)
+		return data;
+
+	string_section_accessor str_writer(str_sec);
+	symbol_section_accessor sym_writer(reader, sym_sec);
+	relocation_section_accessor rel_writer(reader, rel_sec);
+
+	Elf64_Addr offset;
+	Elf_Word symbol;
+	unsigned type;
+	Elf_Sxword addend;
+	rel_writer.get_entry(
+		data.rel,
+		offset,
+		symbol,
+		type,
+		addend);
+
+	assert(addend == 0);
+
+	rel_writer.add_entry(offset, symbol, type);
+
+	data.rel = rel_writer.get_entries_num() - 1;
+
+	return data;
+}
+
+void lifter::move_data_closer() {
+	int dup_count = 0;
+
+	for (auto i = instructions.begin(); i != instructions.end(); ++i) {
+		if (i->mnemonic.rfind("str", 0) != 0 && i->mnemonic.rfind("ldr", 0) != 0)
+			continue;
+		
+		if (i->target_label.empty())
+			continue;
+
+		int distance = 0;
+
+		decltype(i) j;
+		for (j = std::next(i); j != instructions.end(); ++j) {
+			distance += 4;
+			if (j->label == i->target_label)
+				break;
+		}
+
+		assert(j != instructions.end());
+
+		if (distance > 1024) {
+			auto next = std::next(i);
+			if (next->label.empty())
+				next->label = ".jump_over_data_" + std::to_string(dup_count);
+
+			vins dup_data = duplicate_data(*j);
+			i->target_label = dup_data.label + "_dup_data_" + std::to_string(dup_count);
+			dup_data.label = i->target_label;
+
+			instructions.insert(next, vins::ins_b("", next->label.c_str()));
+			instructions.insert(next, std::move(dup_data));
+	
+			dup_count++;
+		}
+	}
+}
+
 
 void lifter::save(std::string file) {
 	if(!text_sec) {
@@ -1254,6 +1446,8 @@ void lifter::save(std::string file) {
 			instructions.insert(in, std::move(tmp));
 		}
 	}
+
+	move_data_closer();
 
 	std::stringstream assembly;
 

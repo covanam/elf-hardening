@@ -1,5 +1,5 @@
-#ifndef ANALYSIS_H
-#define ANALYSIS_H
+#ifndef CFG_H
+#define CFG_H
 
 #include "disasm.h"
 #include <array>
@@ -60,4 +60,4 @@ private:
 control_flow_graph get_cfg(lifter& lift);
 std::list<vins> cfg_dump(control_flow_graph& cfg);
 
-#endif //ANALYSIS_H
+#endif //CFG_H

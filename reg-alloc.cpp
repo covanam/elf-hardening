@@ -49,9 +49,6 @@ static void get_unused_variables_interference(
 
 	for (auto in = bb.begin(); in != bb.end(); ++in) {
 		for (auto reg : in->regs) {
-			if (rig.find(reg) != rig.end())
-				continue;
-
 			std::set<vreg> overwritten;
 
 			if (std::next(in) == bb.end()) {
@@ -189,11 +186,49 @@ static bool done_removing(const register_interference_graph& rig) {
 	return true;
 }
 
+static void add_interference_with_spilled_flow(
+	register_interference_graph& rig,
+	vreg spilled,
+	basic_block& bb
+) {
+	if (bb.visited)
+		return;
+
+	bb.visited = true;
+
+	for (const auto& in : bb) {
+		if (std::find(in.regs.begin(), in.regs.end(), spilled) != in.regs.end()) {
+			for (vreg r : in.regs) {
+				if (r.num >= 16) {
+					rig[r].insert(spilled);
+				}
+			}
+		}
+	}
+
+	for (basic_block* succ : bb.successors) {
+		add_interference_with_spilled_flow(rig, spilled, *succ);
+	}
+
+	for (basic_block* pred : bb.predecessors) {
+		add_interference_with_spilled_flow(rig, spilled, *pred);
+	}	
+}
+
+static void add_interference_with_spilled(
+	register_interference_graph& rig,
+	vreg spilled,
+	basic_block& entry
+) {
+	add_interference_with_spilled_flow(rig, spilled, entry);
+}
+
 static std::map<vreg, vreg> assign_register(
 	control_flow_graph& cfg,
 	basic_block& entry
 ) {
 	register_interference_graph rig = get_rig(cfg, entry);
+	register_interference_graph same_ins_rig;
 
 	std::list<std::pair<vreg, std::set<vreg>>> stack;
 	std::list<std::pair<vreg, std::set<vreg>>> spilled_regs;
@@ -259,6 +294,10 @@ static std::map<vreg, vreg> assign_register(
 			for (auto& r : rig) {
 				r.second.erase(spilled);
 			}
+			if (spilled.num >= 0) {
+				cfg.reset();
+				add_interference_with_spilled(same_ins_rig, spilled, entry);
+			}
 		} else {
 			break;
 		}
@@ -307,6 +346,12 @@ static std::map<vreg, vreg> assign_register(
 					available.erase(i.num);
 				}
 			}
+			
+			auto m = same_ins_rig.find(r->first);
+			if (m != same_ins_rig.end())
+				for (auto sr : m->second)
+					available.erase(sr.num);
+
 			assert(available.begin() != available.end());
 			allocation.insert({r->first, vreg(*--available.end())});
 		}
@@ -424,7 +469,7 @@ static void rename(vreg from, vreg to, std::set<vins*>& def, std::set<vins*>& us
 static bool need_virtualized(vreg reg) {
 	// anything between r0-r11
 	// #TODO: r14(lr) and r12(ip) can be used too
-	return reg >= vreg(0) && reg <= vreg(11) || reg.num >= 16 && reg.num < 32;
+	return reg >= vreg(0) && reg <= vreg(11) || reg.num >= 16 && reg.num < 64;
 }
 
 static basic_block& find_bb_containing_vins(
@@ -442,7 +487,7 @@ static basic_block& find_bb_containing_vins(
 }
 
 static void split_registers(control_flow_graph& cfg) {
-	vreg v(32);
+	vreg v(64);
 
 	for (auto& bb : cfg) {
 		if (bb.front().is_pseudo() && bb.front().operands == "func_entry") {
@@ -946,7 +991,8 @@ static void spill(control_flow_graph& cfg) {
 					while (l != in->live_regs.end() &&
 					       !(0 <= l->num && l->num < 11) ||
 					       std::find(in->regs.begin(), in->regs.end(), *l)
-					         != in->regs.end()
+					         != in->regs.end() ||
+					       *l == stack_ptr
 					       ) {
 						++l;
 					}
