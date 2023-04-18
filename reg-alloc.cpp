@@ -4,7 +4,7 @@
 #include <limits>
 #include "analysis.h"
 
-static constexpr int num_physical_reg = 12;
+static constexpr int num_physical_reg = 13;
 
 using register_interference_graph = std::map<vreg, std::set<vreg>>;
 
@@ -126,11 +126,9 @@ register_interference_graph get_rig(
 	get_multiple_written_interference(entry, rig);
 
 	rig.erase(vreg(13));
-	rig.erase(vreg(14));
 	rig.erase(vreg(15));
 	for (auto& r : rig) {
 		r.second.erase(vreg(13));
-		r.second.erase(vreg(14));
 		r.second.erase(vreg(15));
 		r.second.erase(r.first);
 	}
@@ -169,7 +167,7 @@ float usage_count(
 	basic_block& entry,
 	vreg reg
 ) {
-	if (reg.num < 4 || reg.num == 12)
+	if (reg.num < 4 || reg.num == 12 || reg.num == 14)
 		return std::numeric_limits<float>::max();
 
 	cfg.reset();
@@ -256,6 +254,12 @@ static std::map<vreg, vreg> assign_register(
 		}
 	}
 
+	std::map<vreg, float> use_count_map;
+	for (const auto& r : rig) {
+		use_count_map[r.first] = usage_count(cfg, entry, r.first);
+	}
+
+
 	while (true) {
 		bool changed = true;
 		while (changed) {
@@ -282,7 +286,7 @@ static std::map<vreg, vreg> assign_register(
 			float min_cost = std::numeric_limits<float>::max();
 			vreg spilled;
 			for (const auto& r : rig) {
-				float cost = usage_count(cfg, entry, r.first) / r.second.size();
+				float cost = use_count_map.at(r.first) / r.second.size();
 				if (cost < min_cost) {
 					min_cost = cost;
 					spilled = r.first;
@@ -331,7 +335,7 @@ static std::map<vreg, vreg> assign_register(
 
 	for (auto r = stack.rbegin(); r != stack.rend(); r++) {
 		if (true) {
-			std::set<int> available = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12};
+			std::set<int> available = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14};
 			for (auto i : r->second) {
 				auto allocated = allocation.find(i);
 				if (allocated != allocation.end()) {
@@ -341,7 +345,7 @@ static std::map<vreg, vreg> assign_register(
 					// pass
 				}
 				else {
-					assert(i.num <= 12);
+					assert(i.num <= 14);
 					available.erase(i.num);
 				}
 			}
@@ -466,9 +470,9 @@ static void rename(vreg from, vreg to, std::set<vins*>& def, std::set<vins*>& us
 }
 
 static bool need_virtualized(vreg reg) {
-	// anything between r0-r11
-	// #TODO: r14(lr) can be used too
-	return reg >= vreg(0) && reg <= vreg(12) || reg.num >= 16 && reg.num < 64;
+	/* anything except sp and pc */
+	return reg >= vreg(0) && reg <= vreg(12) || reg == vreg(14) ||
+		reg.num >= 16 && reg.num < 64;
 }
 
 static basic_block& find_bb_containing_vins(
@@ -620,8 +624,8 @@ static void split_registers(control_flow_graph& cfg) {
 
 static std::vector<vreg> find_free_reg(const vins& in) {
 	std::vector<vreg> free_reg;
-	for (int i = 0; i < 13; ++i) {
-		if (i == 11)
+	for (int i = 0; i <= 14; ++i) {
+		if (i == 11 || i == 13)
 			continue;
 		bool used_by_others = in.live_regs.find(vreg(i)) != in.live_regs.end();
 		bool used_by_this =
@@ -1017,6 +1021,24 @@ static void spill(control_flow_graph& cfg) {
 				stack_ptr = pre_push->second.first;
 				stack_off = pre_push->second.second;
 			}
+
+
+			if (
+				in->mnemonic == "mov" &&
+				in->regs.size() == 2 &&
+				in->regs[0].spill_slot >= 0 &&
+				in->regs[1].spill_slot < 0
+			) {
+				vins tmp = vins::ins_str(
+					in->regs[1], stack_ptr,
+					-stack_off - 4 - 4 * (in->regs[0].spill_slot));
+				tmp.cond = cond;
+				tmp.mnemonic.append(cond);
+				in->transfer_label(tmp);
+				*in = std::move(tmp);
+				continue;
+			}
+
 			std::vector<vreg> free_regs = find_free_reg(*in);
 
 			int need = reg_map.size() - free_regs.size();
@@ -1026,7 +1048,7 @@ static void spill(control_flow_graph& cfg) {
 				auto l = in->live_regs.begin();
 				for (int i = 0; i < need; ++i) {
 					while (l != in->live_regs.end() &&
-					       !(0 <= l->num && l->num <= 12 && l->num != 11) ||
+					       !(0 <= l->num && l->num <= 14 && l->num != 11 && l->num != 13) ||
 					       std::find(in->regs.begin(), in->regs.end(), *l)
 					         != in->regs.end() ||
 					       *l == stack_ptr
