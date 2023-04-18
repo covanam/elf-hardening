@@ -1023,6 +1023,24 @@ static void spill(control_flow_graph& cfg) {
 				stack_ptr = pre_push->second.first;
 				stack_off = pre_push->second.second;
 			}
+
+
+			if (
+				in->mnemonic == "mov" &&
+				in->regs.size() == 2 &&
+				in->regs[0].spill_slot >= 0 &&
+				in->regs[1].spill_slot < 0
+			) {
+				vins tmp = vins::ins_str(
+					in->regs[1], stack_ptr,
+					-stack_off - 4 - 4 * (in->regs[0].spill_slot));
+				tmp.cond = cond;
+				tmp.mnemonic.append(cond);
+				in->transfer_label(tmp);
+				*in = std::move(tmp);
+				continue;
+			}
+
 			std::vector<vreg> free_regs = find_free_reg(*in);
 
 			int need = reg_map.size() - free_regs.size();
