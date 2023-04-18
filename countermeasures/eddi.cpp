@@ -23,7 +23,6 @@ static void duplicate_registers(control_flow_graph& cfg) {
 				vins::ins_mov(vreg(25), vreg(9)),
 				vins::ins_mov(vreg(26), vreg(10)),
 				vins::ins_mov(vreg(27), vreg(11)),
-				vins::ins_mov(vreg(28), vreg(12)),
 				vins::ins_mov(vreg(29), vreg(13)),
 				vins::ins_mov(vreg(30), vreg(14))
 			});
