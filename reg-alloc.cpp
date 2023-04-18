@@ -256,6 +256,12 @@ static std::map<vreg, vreg> assign_register(
 		}
 	}
 
+	std::map<vreg, float> use_count_map;
+	for (const auto& r : rig) {
+		use_count_map[r.first] = usage_count(cfg, entry, r.first);
+	}
+
+
 	while (true) {
 		bool changed = true;
 		while (changed) {
@@ -282,7 +288,7 @@ static std::map<vreg, vreg> assign_register(
 			float min_cost = std::numeric_limits<float>::max();
 			vreg spilled;
 			for (const auto& r : rig) {
-				float cost = usage_count(cfg, entry, r.first) / r.second.size();
+				float cost = use_count_map.at(r.first) / r.second.size();
 				if (cost < min_cost) {
 					min_cost = cost;
 					spilled = r.first;
