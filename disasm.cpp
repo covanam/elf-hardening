@@ -513,10 +513,11 @@ vins vins::ins_cmp(vreg r1, vreg r2) {
 }
 
 vins vins::ins_udf() {
+	static uint8_t except_count = 0;
 	vins in;
 	in.addr = std::numeric_limits<uint64_t>::max();
 	in.mnemonic = "udf";
-	in.operands = "#0";
+	in.operands = "#" + std::to_string(except_count++);
 	in._is_call = false;
 	in._is_jump = false;
 	in._can_fall_through = false;
