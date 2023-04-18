@@ -15,6 +15,15 @@ static void duplicate_registers(control_flow_graph& cfg) {
 				vins::ins_mov(vreg(17), vreg(1)),
 				vins::ins_mov(vreg(18), vreg(2)),
 				vins::ins_mov(vreg(19), vreg(3)),
+				vins::ins_mov(vreg(20), vreg(4)),
+				vins::ins_mov(vreg(21), vreg(5)),
+				vins::ins_mov(vreg(22), vreg(6)),
+				vins::ins_mov(vreg(23), vreg(7)),
+				vins::ins_mov(vreg(24), vreg(8)),
+				vins::ins_mov(vreg(25), vreg(9)),
+				vins::ins_mov(vreg(26), vreg(10)),
+				vins::ins_mov(vreg(27), vreg(11)),
+				vins::ins_mov(vreg(28), vreg(12)),
 				vins::ins_mov(vreg(29), vreg(13)),
 				vins::ins_mov(vreg(30), vreg(14))
 			});
