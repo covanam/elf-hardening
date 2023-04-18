@@ -1276,12 +1276,59 @@ static void remove_nops(std::list<vins>& il) {
 	}
 }
 
+std::string negate_condition(const std::string& cond);
+
+static bool ends_with(std::string const & value, std::string const & ending)
+{
+	if (ending.size() > value.size()) return false;
+	return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
+}
+
+static void remove_condition(vins& in) {
+	if (ends_with(in.mnemonic, ".w"))
+		in.mnemonic.resize(in.mnemonic.length() - 4);
+	else
+		in.mnemonic.resize(in.mnemonic.length() - 2);
+
+	in.cond.clear();
+}
+
 static void remove_it(std::list<vins>& il) {
+	static int label_count = 0;
 	for (auto i = il.begin(); i != il.end();) {
 		auto next = std::next(i);
 		if (i->mnemonic.rfind("it", 0) == 0) {
-			i->transfer_label(*next);
-			il.erase(i);
+			bool update_flags = false;
+
+			int n = i->mnemonic.size() - 1;
+			auto cond_ins = std::next(i);
+			while (n--) {
+				assert(i->mnemonic[n + 1] == 't' || i->mnemonic[n + 1] == 'e');
+				if (cond_ins->update_flags())
+					update_flags = true;
+				cond_ins = std::next(cond_ins);
+			}
+
+			if (update_flags) {
+				assert(i->mnemonic.find('e') == std::string::npos);
+				n = i->mnemonic.size() - 1;
+				cond_ins = std::next(i);
+				while (n--) {
+					remove_condition(*cond_ins);
+					cond_ins = std::next(cond_ins);
+				}
+				if (cond_ins->label.empty())
+					cond_ins->label = ".jump_past_it_" + std::to_string(label_count++);
+
+				vins tmp = vins::ins_b(negate_condition(i->cond).c_str(), cond_ins->label.c_str());
+
+				i->transfer_label(tmp);
+				*i = std::move(tmp);
+			}
+			else {
+				i->transfer_label(*next);
+				il.erase(i);
+			}
 		}
 		i = next;
 	}
