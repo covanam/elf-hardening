@@ -69,6 +69,8 @@ static basic_block duplicate(lifter& lift, basic_block::iterator begin, basic_bl
 		if (in->update_flags())
 			update_flags = true;
 
+		std::string cond = in->cond;
+
 		vins dup = lift.duplicate(*in);
 		dup.label.clear();
 
@@ -79,6 +81,8 @@ static basic_block duplicate(lifter& lift, basic_block::iterator begin, basic_bl
 		if (dup.mnemonic.rfind("push", 0) == 0) {
 			// #TODO should we push twice?
 			ins.push_back(vins::ins_sub(vreg(29), vreg(29), 4 * in->regs.size()));
+			ins.back().cond = cond;
+			ins.back().mnemonic.append(cond);
 		}
 		else if (dup.mnemonic.rfind("pop", 0) == 0) {
 			for (auto reg = dup.regs.begin(); reg != dup.regs.end(); ++reg) {
@@ -86,15 +90,23 @@ static basic_block duplicate(lifter& lift, basic_block::iterator begin, basic_bl
 					ins.push_back(vins::ins_ldr_postinc(*reg, vreg(29), 4));
 				else
 					ins.push_back(vins::ins_add(vreg(29), vreg(29), 4));
+				ins.back().cond = cond;
+				ins.back().mnemonic.append(cond);
 			}
 		}
 		else if (dup.mnemonic.rfind("stm", 0) == 0) {
 			// #TODO should we store twice?
 			if (in->gen.size()) { // this instruction update the address register
-				if (dup.mnemonic == "stm" || dup.mnemonic == "stm.w")
+				if (dup.mnemonic == "stm" || dup.mnemonic == "stm.w") {
 					ins.push_back(vins::ins_add(dup.regs[0], dup.regs[0], 4 * in->regs.size() - 4));
-				else if (dup.mnemonic == "stmdb" || dup.mnemonic == "stmdb.w")
+					ins.back().cond = cond;
+					ins.back().mnemonic.append(cond);
+				}
+				else if (dup.mnemonic == "stmdb" || dup.mnemonic == "stmdb.w") {
 					ins.push_back(vins::ins_sub(dup.regs[0], dup.regs[0], 4 * in->regs.size() - 4));
+					ins.back().cond = cond;
+					ins.back().mnemonic.append(cond);
+				}
 				else {
 					std::cerr << "Unrecognized instruction: " << dup << '\n';
 					assert(0);
@@ -106,10 +118,14 @@ static basic_block duplicate(lifter& lift, basic_block::iterator begin, basic_bl
 				if (dup.mnemonic == "ldm" || dup.mnemonic == "ldm.w")
 					for (auto reg = ++dup.regs.begin(); reg != dup.regs.end(); ++reg) {
 						ins.push_back(vins::ins_ldr_postinc(*reg, dup.regs[0], 4));
+						ins.back().cond = cond;
+						ins.back().mnemonic.append(cond);
 					}
 				else if (dup.mnemonic == "ldmdb" || dup.mnemonic == "ldmdb.w")
 					for (auto reg = ++dup.regs.begin(); reg != dup.regs.end(); ++reg) {
 						ins.push_back(vins::ins_ldr_preinc(*reg, dup.regs[0], -4));
+						ins.back().cond = cond;
+						ins.back().mnemonic.append(cond);
 					}
 				else {
 					std::cerr << "Unrecognized instruction: " << dup << '\n';
@@ -121,10 +137,14 @@ static basic_block duplicate(lifter& lift, basic_block::iterator begin, basic_bl
 				if (dup.mnemonic == "ldm" || dup.mnemonic == "ldm.w")
 					for (auto reg = ++dup.regs.begin(); reg != dup.regs.end(); ++reg) {
 						ins.push_back(vins::ins_ldr(*reg, dup.regs[0], 4 * i++));
+						ins.back().cond = cond;
+						ins.back().mnemonic.append(cond);
 					}
 				else if (dup.mnemonic == "ldmdb" || dup.mnemonic == "ldmdb.w")
 					for (auto reg = ++dup.regs.begin(); reg != dup.regs.end(); ++reg) {
 						ins.push_back(vins::ins_ldr(*reg, dup.regs[0], -4 * --i));
+						ins.back().cond = cond;
+						ins.back().mnemonic.append(cond);
 					}
 				else {
 					std::cerr << "Unrecognized instruction: " << dup << '\n';
