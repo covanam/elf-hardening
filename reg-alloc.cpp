@@ -220,6 +220,19 @@ static void add_interference_with_spilled(
 	add_interference_with_spilled_flow(rig, spilled, entry);
 }
 
+static int node_degree(
+	const register_interference_graph& second_rig,
+	register_interference_graph::iterator node
+) {
+	int degree = node->second.size();
+
+	auto s = second_rig.find(node->first);
+	if (s != second_rig.end())
+		degree += s->second.size();
+	
+	return degree;
+}
+
 static std::map<vreg, vreg> assign_register(
 	control_flow_graph& cfg,
 	basic_block& entry
@@ -269,7 +282,7 @@ static std::map<vreg, vreg> assign_register(
 				if (r->first.num < 16) {
 					// do nothing
 				}
-				else if (r->second.size() < num_physical_reg) {
+				else if (node_degree(same_ins_rig, r) < num_physical_reg) {
 					stack.push_back({r->first, r->second});
 					changed = true;
 					vreg n = r->first;
