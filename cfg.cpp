@@ -88,7 +88,8 @@ static void link_follow_function_call(
 	else if (callee->back().is_call()) {
 		if (callee->back().is_local_call())
 			link_follow_function_call(callee, callee->successors[0]);
-		link_follow_function_call(caller, callee->next);
+		if (callee->next)
+			link_follow_function_call(caller, callee->next);
 	}
 	else {
 		for (auto succ : callee->successors) {
