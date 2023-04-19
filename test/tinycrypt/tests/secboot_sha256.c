@@ -25,9 +25,11 @@ int main() {
 	tc_sha256_final(digest, &state);
 
 	if (compare(digest, hash, 32)) {
+		/* firmware executed */
 		TC_END_REPORT(TC_FAIL);
 	}
 	else {
+		/* firmware invalid, boot aborted */
 		TC_END_REPORT(TC_PASS);
 	}
 }

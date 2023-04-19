@@ -41,9 +41,11 @@ int main() {
 	tc_sha256_final(hash, &state);
 
 	if (uECC_verify(public_key, hash, sizeof(hash), signature, uECC_secp256r1())) {
+		/* firmware executed */
 		TC_END_REPORT(TC_PASS);
 	}
 	else {
+		/* firmware invalid, boot aborted */
 		TC_END_REPORT(TC_FAIL);
 	}
 }

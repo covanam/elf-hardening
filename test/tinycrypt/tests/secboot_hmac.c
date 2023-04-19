@@ -36,9 +36,11 @@ int main() {
 	tc_hmac_final(digest, 32, &state);
 
 	if (compare(digest, tag, 32)) {
+		/* firmware executed */
 		TC_END_REPORT(TC_FAIL);
 	}
 	else {
+		/* firmware invalid, boot aborted */
 		TC_END_REPORT(TC_PASS);
 	}
 }
