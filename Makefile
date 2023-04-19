@@ -1,4 +1,4 @@
-CXXFLAGS = -g -IELFIO -lcapstone -lkeystone -I.
+CXXFLAGS = -g -std=c++17 -IELFIO -lcapstone -lkeystone -I.
 
 vpath %.cpp countermeasures
 vpath %.h countermeasures
