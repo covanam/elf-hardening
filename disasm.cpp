@@ -1652,10 +1652,18 @@ void lifter::get_function_name() {
 static void add_call_registers(std::list<vins>& instructions) {
 	for (auto& in : instructions) {
 		if (in.is_call() && !in.is_local_call()) {
-			in.regs = {vreg(0), vreg(1), vreg(2), vreg(3), vreg(0),
-				vreg(1), vreg(2), vreg(3), vreg(12), vreg(14)};
-			in.use = {0, 1, 2, 3};
-			in.gen = {4, 5, 6, 7, 8, 9};
+			if (in.mnemonic == "blx") {
+				in.regs = {in.regs[0], vreg(0), vreg(1), vreg(2), vreg(3),
+					vreg(0), vreg(1), vreg(2), vreg(3), vreg(12), vreg(14)};
+				in.use = {0, 1, 2, 3, 4};
+				in.gen = {5, 6, 7, 8, 9, 10};
+			}
+			else {
+				in.regs = {vreg(0), vreg(1), vreg(2), vreg(3), vreg(0),
+					vreg(1), vreg(2), vreg(3), vreg(12), vreg(14)};
+				in.use = {0, 1, 2, 3};
+				in.gen = {4, 5, 6, 7, 8, 9};
+			}
 		}
 		else if (in.is_call()) {
 			in.regs = {vreg(14)};
