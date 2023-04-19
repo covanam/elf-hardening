@@ -35,6 +35,7 @@ def test(elffile):
     qemu.kill()
 
 test("tinycrypt/tests/secboot_sha256.elf")
+test("tinycrypt/tests/secboot_hmac.elf")
 test("tinycrypt/tests/test_aes.elf")
 test("tinycrypt/tests/test_cbc_mode.elf")
 test("tinycrypt/tests/test_cmac_mode.elf")
