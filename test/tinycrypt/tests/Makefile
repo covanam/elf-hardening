@@ -16,7 +16,7 @@ TEST_DEPS:=$(TEST_SOURCE:.c=.d)
 TEST_BINARY:=$(TEST_SOURCE:.c=$(DOTEXE))
 
 # Edit the 'all' content to add/remove tests needed from TinyCrypt library:
-all: $(TEST_BINARY) secboot_sha256.elf secboot_hmac.elf
+all: $(TEST_BINARY) secboot_sha256.elf secboot_hmac.elf secboot_ecc_dsa.elf
 
 clean:
 	-$(RM) $(TEST_BINARY) $(TEST_OBJECTS) $(TEST_DEPS)
@@ -105,6 +105,10 @@ secboot_sha256$(DOTEXE): secboot_sha256.o s_sha256.o s_utils.o \
 
 secboot_hmac$(DOTEXE): secboot_hmac.o s_hmac.o s_sha256.o s_utils.o \
 		../../startup.o ../../stdlib.o ../../second_stack.o
+	$(LD) $(LDFLAGS) $^ -o $@
+
+secboot_ecc_dsa$(DOTEXE): secboot_ecc_dsa.o s_ecc_dsa.o s_ecc.o s_utils.o s_ecc_platform_specific.o \
+		sha256.o ../../startup.o ../../stdlib.o ../../second_stack.o
 	$(LD) $(LDFLAGS) $^ -o $@
 
 
