@@ -12,7 +12,7 @@ static const uint8_t firmware[28] = {
 	0x69, 0x6e, 0x67, 0x3f
 };
 
-static const uint8_t tag[32] = {
+static const uint8_t reference_tag[32] = {
 	0x5b, 0xdc, 0xc1, 0x46, 0xbf, 0x60, 0x75, 0x4e, 0x6a, 0x04, 0x24, 0x26,
 	0x08, 0x95, 0x75, 0xc7, 0x5a, 0x00, 0x3f, 0x08, 0x9d, 0x27, 0x39, 0x83,
 	0x9d, 0xec, 0x58, 0xb9, 0x64, 0xec, 0x38, 0x43
@@ -27,15 +27,15 @@ int compare(const uint8_t *s1, const uint8_t *s2, uint32_t len) {
 
 int main() {
 	struct tc_hmac_state_struct state;
-	uint8_t digest[32];
+	uint8_t computed_tag[32];
 
 	tc_hmac_set_key(&state, secret_key, sizeof(secret_key));
 
 	tc_hmac_init(&state);
 	tc_hmac_update(&state, firmware, sizeof(firmware));
-	tc_hmac_final(digest, 32, &state);
+	tc_hmac_final(computed_tag, 32, &state);
 
-	if (compare(digest, tag, 32)) {
+	if (compare(computed_tag, reference_tag, 32)) {
 		/* firmware executed */
 		TC_END_REPORT(TC_FAIL);
 	}
