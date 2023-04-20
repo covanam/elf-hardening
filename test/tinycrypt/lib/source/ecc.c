@@ -205,7 +205,7 @@ uECC_word_t uECC_vli_sub(uECC_word_t *result, const uECC_word_t *left,
 
 /* Computes result = left + right, returning carry, in constant time.
  * Can modify in place. */
-uECC_word_t uECC_vli_add(uECC_word_t *result, const uECC_word_t *left,
+static uECC_word_t uECC_vli_add(uECC_word_t *result, const uECC_word_t *left,
 				const uECC_word_t *right, wordcount_t num_words)
 {
 	uECC_word_t carry = 0;
@@ -229,7 +229,7 @@ cmpresult_t uECC_vli_cmp(const uECC_word_t *left, const uECC_word_t *right,
 }
 
 /* Computes vli = vli >> 1. */
-void uECC_vli_rshift1(uECC_word_t *vli, wordcount_t num_words)
+static void uECC_vli_rshift1(uECC_word_t *vli, wordcount_t num_words)
 {
 	uECC_word_t *end = vli;
 	uECC_word_t carry = 0;
@@ -242,7 +242,7 @@ void uECC_vli_rshift1(uECC_word_t *vli, wordcount_t num_words)
 	}
 }
 
-void muladd(uECC_word_t a, uECC_word_t b, uECC_word_t *r0,
+static void muladd(uECC_word_t a, uECC_word_t b, uECC_word_t *r0,
 		   uECC_word_t *r1, uECC_word_t *r2)
 {
 
@@ -256,7 +256,7 @@ void muladd(uECC_word_t a, uECC_word_t b, uECC_word_t *r0,
 }
 
 /* Computes result = left * right. Result must be 2 * num_words long. */
-void uECC_vli_mult(uECC_word_t *result, const uECC_word_t *left,
+static void uECC_vli_mult(uECC_word_t *result, const uECC_word_t *left,
 			  const uECC_word_t *right, wordcount_t num_words)
 {
 
@@ -379,7 +379,7 @@ void uECC_vli_modMult_fast(uECC_word_t *result, const uECC_word_t *left,
 	curve->mmod_fast(result, product);
 }
 
-void uECC_vli_modSquare_fast(uECC_word_t *result,
+static void uECC_vli_modSquare_fast(uECC_word_t *result,
 				    const uECC_word_t *left,
 				    uECC_Curve curve)
 {
@@ -389,7 +389,7 @@ void uECC_vli_modSquare_fast(uECC_word_t *result,
 
 #define EVEN(vli) (!(vli[0] & 1))
 
-void vli_modInv_update(uECC_word_t *uv,
+static void vli_modInv_update(uECC_word_t *uv,
 			      const uECC_word_t *mod,
 			      wordcount_t num_words)
 {
@@ -636,7 +636,7 @@ void apply_z(uECC_word_t * X1, uECC_word_t * Y1, const uECC_word_t * const Z,
 }
 
 /* P = (x1, y1) => 2P, (x2, y2) => P' */
-void XYcZ_initial_double(uECC_word_t * X1, uECC_word_t * Y1,
+static void XYcZ_initial_double(uECC_word_t * X1, uECC_word_t * Y1,
 				uECC_word_t * X2, uECC_word_t * Y2,
 				const uECC_word_t * const initial_Z,
 				uECC_Curve curve)
@@ -688,7 +688,7 @@ void XYcZ_add(uECC_word_t * X1, uECC_word_t * Y1,
    Output P + Q = (x3, y3, Z3), P - Q = (x3', y3', Z3)
    or P => P - Q, Q => P + Q
  */
-void XYcZ_addC(uECC_word_t * X1, uECC_word_t * Y1,
+static void XYcZ_addC(uECC_word_t * X1, uECC_word_t * Y1,
 		      uECC_word_t * X2, uECC_word_t * Y2,
 		      uECC_Curve curve)
 {
