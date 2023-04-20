@@ -93,6 +93,7 @@ public:
 	template<class list> static vins pop_second_stack(const list& regs);
 	template<class list> static vins stmia(vreg addr, const list& regs);
 	template<class list> static vins ldmdb(vreg addr, const list& regs);
+	template<class list> static vins pop(const list& regs);
 
 	static vins data_word(int data);
 

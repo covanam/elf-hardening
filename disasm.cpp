@@ -814,6 +814,29 @@ vins vins::data_word(int data) {
 	return in;
 }
 
+template<class list> vins vins::pop(const list& regs) {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+	in.mnemonic = "pop";
+	in.operands = "{";
+	std::stringstream ss;
+	ss << '{' << *regs.begin();
+	for (auto r = std::next(regs.begin()); r != regs.end(); ++r) {
+		ss << ", " << *r;
+	}
+	ss << '}';
+	in.operands = ss.str();
+
+	in._is_call = false;
+	in._is_jump = false;
+	in._can_fall_through = true;
+	in._size = 0;
+	in.regs = regs;
+	in.gen = std::vector<unsigned>(regs.size());
+	std::iota(in.gen.begin(), in.gen.end(), 0);
+
+	return in;
+}
 
 template<class list> vins vins::push_second_stack(const list& regs) {
 	vins in;
@@ -1615,6 +1638,25 @@ static void transform_cbnz_cbz(std::list<vins>& instructions) {
 	}
 }
 
+static void transform_pop_pc(std::list<vins>& instructions) {
+	for (auto it = instructions.begin(); it != instructions.end();) {
+		auto next = std::next(it);
+		if (it->mnemonic.rfind("pop", 0) == 0) {
+			for (vreg& reg : it->regs) {
+				if (reg.num == 15) {
+					reg.num = 14;
+					vins tmp = vins::pop(it->regs);
+					it->transfer_label(tmp);
+					*it = std::move(tmp);
+					instructions.insert(next, vins::ins_return());
+					break;
+				}
+			}
+		}
+		it = next;
+	}
+}
+
 void lifter::get_function_name() {
 	symbol_section_accessor symbols(reader, sym_sec);
 
@@ -1748,6 +1790,7 @@ bool lifter::load(std::string file) {
 	transform_cbnz_cbz(instructions);
 	remove_it(instructions);
 	remove_conditional_return(instructions);
+	transform_pop_pc(instructions);
 
 	return true;
 }
