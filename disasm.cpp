@@ -1707,6 +1707,11 @@ static void add_call_registers(std::list<vins>& instructions) {
 				in.gen = {4, 5, 6, 7, 8, 9};
 			}
 		}
+		else if (in.is_jump() && in.rel >= 0) {
+			assert(in.mnemonic == "b.w");
+			in.regs = {vreg(0), vreg(1), vreg(2), vreg(3)};
+			in.use = {0, 1, 2, 3};
+		}
 		else if (in.is_call()) {
 			in.regs = {vreg(14)};
 			in.gen = {0};

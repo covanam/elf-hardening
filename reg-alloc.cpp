@@ -534,7 +534,7 @@ static void split_registers(control_flow_graph& cfg) {
 		}
 
 		for (auto it = bb.begin(); it != bb.end(); ++it) {
-			if (it->is_call() && !it->is_local_call()) {
+			if (it->is_jump()) {
 				for (unsigned i : it->use) {
 					vreg r = it->regs[i];
 					if (r.num < 0) continue;
@@ -547,7 +547,7 @@ static void split_registers(control_flow_graph& cfg) {
 		}
 
 		for (auto it = bb.rbegin(); it != bb.rend(); ++it) {
-			if (it->is_call() && !it->is_local_call()) {
+			if (it->is_jump()) {
 				for (unsigned i : it->gen) {
 					vreg r = it->regs[i];
 					if (r.num < 0) continue;
