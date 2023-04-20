@@ -3,30 +3,32 @@
 #include <map>
 #include "disasm.h"
 #include <cassert>
+#include "analysis.h"
 
 static const vreg r_preserve_flags = vreg(31);
 static const vreg r_duplicated_flags = vreg(32);
 
 static void duplicate_registers(control_flow_graph& cfg) {
+	cfg.reset();
+	liveness_analysis(cfg);
+
 	for (auto& bb : cfg) {
 		if (bb.front().is_pseudo() && bb.front().operands == "func_entry") {
-			basic_block dup({
-				vins::ins_mov(vreg(16), vreg(0)),
-				vins::ins_mov(vreg(17), vreg(1)),
-				vins::ins_mov(vreg(18), vreg(2)),
-				vins::ins_mov(vreg(19), vreg(3)),
-				vins::ins_mov(vreg(20), vreg(4)),
-				vins::ins_mov(vreg(21), vreg(5)),
-				vins::ins_mov(vreg(22), vreg(6)),
-				vins::ins_mov(vreg(23), vreg(7)),
-				vins::ins_mov(vreg(24), vreg(8)),
-				vins::ins_mov(vreg(25), vreg(9)),
-				vins::ins_mov(vreg(26), vreg(10)),
-				vins::ins_mov(vreg(27), vreg(11)),
-				vins::ins_mov(vreg(29), vreg(13)),
-				vins::ins_mov(vreg(30), vreg(14))
-			});
+			basic_block dup;
+
+			for (vreg reg : bb.begin()->live_regs) {
+				if (reg.num >= 16 && reg.num <= 30) {
+					dup.push_back(vins::ins_mov(reg, vreg(reg.num - 16)));
+				}
+			}
+
 			bb.splice(std::next(bb.begin()), dup);
+		}
+	}
+
+	for (auto& bb : cfg) {
+		for (auto& in : bb) {
+			in.live_regs.clear();
 		}
 	}
 }
