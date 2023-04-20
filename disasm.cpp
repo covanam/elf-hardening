@@ -814,6 +814,29 @@ vins vins::data_word(int data) {
 	return in;
 }
 
+template<class list> vins vins::pop(const list& regs) {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+	in.mnemonic = "pop";
+	in.operands = "{";
+	std::stringstream ss;
+	ss << '{' << *regs.begin();
+	for (auto r = std::next(regs.begin()); r != regs.end(); ++r) {
+		ss << ", " << *r;
+	}
+	ss << '}';
+	in.operands = ss.str();
+
+	in._is_call = false;
+	in._is_jump = false;
+	in._can_fall_through = true;
+	in._size = 0;
+	in.regs = regs;
+	in.gen = std::vector<unsigned>(regs.size());
+	std::iota(in.gen.begin(), in.gen.end(), 0);
+
+	return in;
+}
 
 template<class list> vins vins::push_second_stack(const list& regs) {
 	vins in;
