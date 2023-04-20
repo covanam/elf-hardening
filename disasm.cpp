@@ -1638,6 +1638,25 @@ static void transform_cbnz_cbz(std::list<vins>& instructions) {
 	}
 }
 
+static void transform_pop_pc(std::list<vins>& instructions) {
+	for (auto it = instructions.begin(); it != instructions.end();) {
+		auto next = std::next(it);
+		if (it->mnemonic.rfind("pop", 0) == 0) {
+			for (vreg& reg : it->regs) {
+				if (reg.num == 15) {
+					reg.num = 14;
+					vins tmp = vins::pop(it->regs);
+					it->transfer_label(tmp);
+					*it = std::move(tmp);
+					instructions.insert(next, vins::ins_return());
+					break;
+				}
+			}
+		}
+		it = next;
+	}
+}
+
 void lifter::get_function_name() {
 	symbol_section_accessor symbols(reader, sym_sec);
 
@@ -1771,6 +1790,7 @@ bool lifter::load(std::string file) {
 	transform_cbnz_cbz(instructions);
 	remove_it(instructions);
 	remove_conditional_return(instructions);
+	transform_pop_pc(instructions);
 
 	return true;
 }

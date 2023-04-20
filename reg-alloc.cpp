@@ -698,15 +698,6 @@ static void insert_stack_recover(
 		auto ret = std::prev(bb.end(), 2);
 		assert(ret->is_function_return());
 
-		for (vreg& r : ret->regs) {
-			if (r.num == 15) { // pc
-				r.num = 14; // lr
-
-				vins tmp = vins::ins_return();
-				bb.insert(std::prev(bb.end()), std::move(tmp));
-			}
-		}
-
 		ret = std::prev(bb.end(), 2);
 
 		basic_block store_second_stack = basic_block({
@@ -812,21 +803,6 @@ static void spill(control_flow_graph& cfg) {
 			else if (in->is_pseudo() && in->operands == "func_exit") {
 				assert(def_regs.empty());
 				auto pos = std::prev(in);
-				for (auto& ngu : bb) {
-				}
-
-				for (vreg& r : pos->regs) {
-					if (r.num == 15) { // pc
-						r.num = 14; // lr
-
-						vins tmp = vins::ins_return();
-						tmp.cond = cond;
-						tmp.mnemonic.append(cond);
-						bb.insert(std::prev(bb.end()), std::move(tmp));
-					}
-				}
-
-				pos = std::prev(bb.end(), 2);
 
 				assert(pos->is_function_return());
 				for (vreg r : use_regs) {
@@ -840,20 +816,6 @@ static void spill(control_flow_graph& cfg) {
 				}
 			}
 			else {
-
-				if (in->mnemonic.rfind("pop", 0) == 0) {
-					for (vreg& r : in->regs) {
-						if (r.num == 15) { // pc
-							r.num = 14; // lr
-
-							vins tmp = vins::ins_return();
-							tmp.cond = cond;
-							tmp.mnemonic.append(cond);
-							bb.insert(std::next(in), std::move(tmp));
-						}
-					}
-				}
-
 				bool use_r11 = false;
 				for (vreg r : in->regs) {
 					if (r.num == 11)
@@ -1090,20 +1052,6 @@ static void spill(control_flow_graph& cfg) {
 			}
 
 			for (unsigned i : in->gen) {
-				if (in->is_jump()) {
-					if (in->mnemonic.rfind("pop", 0) == 0) {
-						for (vreg& r : in->regs) {
-							if (r.num == 15) { // pc
-								r.num = 14; // lr
-
-								vins tmp = vins::ins_return();
-								tmp.cond = cond;
-								tmp.mnemonic.append(cond);
-								bb.insert(std::next(in), std::move(tmp));
-							}
-						}
-					}
-				}
 				if (in->regs[i].spill_slot >= 0) {
 					vreg r = vreg(reg_map.at(in->regs[i].spill_slot));
 					vins tmp = vins::ins_str(
