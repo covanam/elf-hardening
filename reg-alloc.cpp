@@ -194,11 +194,20 @@ static void add_interference_with_spilled_flow(
 	bb.visited = true;
 
 	for (const auto& in : bb) {
-		if (std::find(in.regs.begin(), in.regs.end(), spilled) != in.regs.end()) {
-			for (vreg r : in.regs) {
-				if (r.num >= 16) {
-					rig[r].insert(spilled);
+		for (unsigned i : in.use) {
+			if (in.regs[i] == spilled) {
+				for (unsigned j : in.use) {
+					rig[in.regs[j]].insert(spilled);
 				}
+				break;
+			}
+		}
+		for (unsigned i : in.gen) {
+			if (in.regs[i] == spilled) {
+				for (unsigned j : in.gen) {
+					rig[in.regs[j]].insert(spilled);
+				}
+				break;
 			}
 		}
 	}
