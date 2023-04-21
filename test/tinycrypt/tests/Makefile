@@ -42,8 +42,6 @@ s_ecc_dsa.o: ecc_dsa.o ../../../harden
 	../../../harden $< $@
 s_ecc.o: ecc.o ../../../harden
 	../../../harden $< $@
-s_ecc_platform_specific.o: ecc_platform_specific.o ../../../harden
-	../../../harden $< $@
 s_hmac.o: hmac.o ../../../harden
 	../../../harden $< $@
 s_hmac_prng.o: hmac_prng.o ../../../harden
@@ -90,15 +88,6 @@ test_sha256$(DOTEXE): test_sha256.o s_sha256.o s_utils.o \
 		../../startup.o ../../stdlib.o ../../second_stack.o
 	$(LD) $(LDFLAGS) $^ -o $@
 
-test_ecc_dh$(DOTEXE): test_ecc_dh.o s_ecc.o s_ecc_dh.o test_ecc_utils.o s_ecc_platform_specific.o
-	touch $@
-#	$(LINK.o) $^ $(LOADLIBES) $(LDLIBS) -o $@
-
-test_ecc_dsa$(DOTEXE): test_ecc_dsa.o s_ecc.o s_utils.o s_ecc_dh.o \
-		s_ecc_dsa.o s_sha256.o test_ecc_utils.o s_ecc_platform_specific.o
-#	$(LINK.o) $^ $(LOADLIBES) $(LDLIBS) -o $@
-	touch $@
-
 secboot_sha256$(DOTEXE): secboot_sha256.o s_sha256.o s_utils.o \
 		../../startup.o ../../stdlib.o ../../second_stack.o
 	$(LD) $(LDFLAGS) $^ -o $@
@@ -107,7 +96,7 @@ secboot_hmac$(DOTEXE): secboot_hmac.o s_hmac.o s_sha256.o s_utils.o \
 		../../startup.o ../../stdlib.o ../../second_stack.o
 	$(LD) $(LDFLAGS) $^ -o $@
 
-secboot_ecc_dsa$(DOTEXE): secboot_ecc_dsa.o s_ecc_dsa.o s_ecc.o s_utils.o s_ecc_platform_specific.o \
+secboot_ecc_dsa$(DOTEXE): secboot_ecc_dsa.o s_ecc_dsa.o s_ecc.o s_utils.o \
 		sha256.o ../../startup.o ../../stdlib.o ../../second_stack.o
 	$(LD) $(LDFLAGS) $^ -o $@
 
