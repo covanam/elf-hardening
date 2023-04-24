@@ -25,6 +25,14 @@ int compare(const uint8_t *s1, const uint8_t *s2, uint32_t len) {
 	return 0;
 }
 
+__attribute__((noinline)) void execute_firmware() {
+	TC_END_REPORT(TC_PASS);
+}
+
+__attribute__((noinline)) void abort_boot() {
+	TC_END_REPORT(TC_FAIL);
+}
+
 int main() {
 	struct tc_hmac_state_struct state;
 	uint8_t computed_tag[32];
@@ -36,11 +44,10 @@ int main() {
 	tc_hmac_final(computed_tag, 32, &state);
 
 	if (compare(computed_tag, reference_tag, 32)) {
-		/* firmware executed */
-		TC_END_REPORT(TC_FAIL);
+		abort_boot();
 	}
 	else {
-		/* firmware invalid, boot aborted */
-		TC_END_REPORT(TC_PASS);
+		execute_firmware();
 	}
+	return 0;
 }

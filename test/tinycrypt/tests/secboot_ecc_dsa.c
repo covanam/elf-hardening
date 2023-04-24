@@ -32,6 +32,14 @@ static const uint8_t public_key[] = {
 	0xF2, 0xA3, 0x3C, 0x2E, 0x69, 0xDA, 0xFA, 0xBE, 0xA0, 0x9B, 0x96, 0x0B,
 	0xC6, 0x1E, 0x23, 0x0A};
 
+__attribute__((noinline)) void execute_firmware() {
+	TC_END_REPORT(TC_PASS);
+}
+
+__attribute__((noinline)) void abort_boot() {
+	TC_END_REPORT(TC_FAIL);
+}
+
 int main() {
 	struct tc_sha256_state_struct state;
 	uint8_t hash[32];
@@ -41,11 +49,10 @@ int main() {
 	tc_sha256_final(hash, &state);
 
 	if (uECC_verify(public_key, hash, sizeof(hash), signature, uECC_secp256r1())) {
-		/* firmware executed */
-		TC_END_REPORT(TC_PASS);
+		execute_firmware();
 	}
 	else {
-		/* firmware invalid, boot aborted */
-		TC_END_REPORT(TC_FAIL);
+		abort_boot();
 	}
+	return 0;
 }

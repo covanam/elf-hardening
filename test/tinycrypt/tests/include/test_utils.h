@@ -80,7 +80,6 @@
 			_test_mem = 0xcafebabe;                         \
 		else                                                \
 			_test_mem = 0xdeadbeef;                         \
-		return 0;                                           \
 	} while (0)
 
 static inline void show_str(const char *label, const uint8_t *s, size_t len)
