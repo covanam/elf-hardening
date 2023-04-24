@@ -16,7 +16,7 @@ TEST_DEPS:=$(TEST_SOURCE:.c=.d)
 TEST_BINARY:=$(TEST_SOURCE:.c=$(DOTEXE))
 
 # Edit the 'all' content to add/remove tests needed from TinyCrypt library:
-all: $(TEST_BINARY)
+all: $(TEST_BINARY) secboot_sha256.elf secboot_hmac.elf secboot_ecc_dsa.elf
 
 clean:
 	-$(RM) $(TEST_BINARY) $(TEST_OBJECTS) $(TEST_DEPS)
@@ -41,8 +41,6 @@ s_ecc_dh.o: ecc_dh.o ../../../harden
 s_ecc_dsa.o: ecc_dsa.o ../../../harden
 	../../../harden $< $@
 s_ecc.o: ecc.o ../../../harden
-	../../../harden $< $@
-s_ecc_platform_specific.o: ecc_platform_specific.o ../../../harden
 	../../../harden $< $@
 s_hmac.o: hmac.o ../../../harden
 	../../../harden $< $@
@@ -90,14 +88,17 @@ test_sha256$(DOTEXE): test_sha256.o s_sha256.o s_utils.o \
 		../../startup.o ../../stdlib.o ../../second_stack.o
 	$(LD) $(LDFLAGS) $^ -o $@
 
-test_ecc_dh$(DOTEXE): test_ecc_dh.o s_ecc.o s_ecc_dh.o test_ecc_utils.o s_ecc_platform_specific.o
-	touch $@
-#	$(LINK.o) $^ $(LOADLIBES) $(LDLIBS) -o $@
+secboot_sha256$(DOTEXE): secboot_sha256.o s_sha256.o s_utils.o \
+		../../startup.o ../../stdlib.o ../../second_stack.o
+	$(LD) $(LDFLAGS) $^ -o $@
 
-test_ecc_dsa$(DOTEXE): test_ecc_dsa.o s_ecc.o s_utils.o s_ecc_dh.o \
-		s_ecc_dsa.o s_sha256.o test_ecc_utils.o s_ecc_platform_specific.o
-#	$(LINK.o) $^ $(LOADLIBES) $(LDLIBS) -o $@
-	touch $@
+secboot_hmac$(DOTEXE): secboot_hmac.o s_hmac.o s_sha256.o s_utils.o \
+		../../startup.o ../../stdlib.o ../../second_stack.o
+	$(LD) $(LDFLAGS) $^ -o $@
+
+secboot_ecc_dsa$(DOTEXE): secboot_ecc_dsa.o s_ecc_dsa.o s_ecc.o s_utils.o \
+		sha256.o ../../startup.o ../../stdlib.o ../../second_stack.o
+	$(LD) $(LDFLAGS) $^ -o $@
 
 
 -include $(TEST_DEPS)
