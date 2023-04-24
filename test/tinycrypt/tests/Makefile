@@ -50,6 +50,12 @@ s_sha256.o: sha256.o ../../../harden
 	../../../harden $< $@
 s_utils.o: utils.o ../../../harden
 	../../../harden $< $@
+s_secboot_sha256.o: secboot_sha256.o ../../../harden
+	../../../harden $< $@
+s_secboot_hmac.o: secboot_hmac.o ../../../harden
+	../../../harden $< $@
+s_secboot_ecc_dsa.o: secboot_ecc_dsa.o ../../../harden
+	../../../harden $< $@
 
 # Dependencies
 test_aes$(DOTEXE): test_aes.o s_aes_encrypt.o s_aes_decrypt.o s_utils.o \
@@ -88,16 +94,16 @@ test_sha256$(DOTEXE): test_sha256.o s_sha256.o s_utils.o \
 		../../startup.o ../../stdlib.o ../../second_stack.o
 	$(LD) $(LDFLAGS) $^ -o $@
 
-secboot_sha256$(DOTEXE): secboot_sha256.o s_sha256.o s_utils.o \
+secboot_sha256$(DOTEXE): s_secboot_sha256.o s_sha256.o s_utils.o \
 		../../startup.o ../../stdlib.o ../../second_stack.o
 	$(LD) $(LDFLAGS) $^ -o $@
 
-secboot_hmac$(DOTEXE): secboot_hmac.o s_hmac.o s_sha256.o s_utils.o \
+secboot_hmac$(DOTEXE): s_secboot_hmac.o s_hmac.o s_sha256.o s_utils.o \
 		../../startup.o ../../stdlib.o ../../second_stack.o
 	$(LD) $(LDFLAGS) $^ -o $@
 
-secboot_ecc_dsa$(DOTEXE): secboot_ecc_dsa.o s_ecc_dsa.o s_ecc.o s_utils.o \
-		sha256.o ../../startup.o ../../stdlib.o ../../second_stack.o
+secboot_ecc_dsa$(DOTEXE): s_secboot_ecc_dsa.o s_ecc_dsa.o s_ecc.o s_utils.o \
+		s_sha256.o ../../startup.o ../../stdlib.o ../../second_stack.o
 	$(LD) $(LDFLAGS) $^ -o $@
 
 
