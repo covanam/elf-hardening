@@ -40,7 +40,7 @@ __attribute__((noinline)) void abort_boot() {
 	TC_END_REPORT(TC_FAIL);
 }
 
-int main() {
+int my_main() {
 	struct tc_sha256_state_struct state;
 	uint8_t hash[32];
 
@@ -56,3 +56,5 @@ int main() {
 	}
 	return 0;
 }
+
+int main() { return my_main(); }

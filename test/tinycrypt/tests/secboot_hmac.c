@@ -33,7 +33,7 @@ __attribute__((noinline)) void abort_boot() {
 	TC_END_REPORT(TC_FAIL);
 }
 
-int main() {
+int my_main() {
 	struct tc_hmac_state_struct state;
 	uint8_t computed_tag[32];
 
@@ -51,3 +51,5 @@ int main() {
 	}
 	return 0;
 }
+
+int main() { return my_main(); }
