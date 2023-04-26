@@ -1,6 +1,7 @@
 #include <tinycrypt/hmac.h>
 #include <test_utils.h>
 #include <stdint.h>
+#include <tinycrypt/utils.h>
 
 static const uint8_t secret_key[4] = {
 	0x4a, 0x65, 0x66, 0x65
@@ -17,13 +18,6 @@ static const uint8_t reference_tag[32] = {
 	0x08, 0x95, 0x75, 0xc7, 0x5a, 0x00, 0x3f, 0x08, 0x9d, 0x27, 0x39, 0x83,
 	0x9d, 0xec, 0x58, 0xb9, 0x64, 0xec, 0x38, 0x43
 };
-
-int compare(const uint8_t *s1, const uint8_t *s2, uint32_t len) {
-	while (len--)
-		if (*(s1++) != *(s2++))
-			return 1;
-	return 0;
-}
 
 __attribute__((noinline)) void execute_firmware() {
 	TC_END_REPORT(TC_PASS);
@@ -43,7 +37,7 @@ int my_main() {
 	tc_hmac_update(&state, firmware, sizeof(firmware));
 	tc_hmac_final(computed_tag, 32, &state);
 
-	if (compare(computed_tag, reference_tag, 32)) {
+	if (_compare(computed_tag, reference_tag, 32)) {
 		abort_boot();
 	}
 	else {
