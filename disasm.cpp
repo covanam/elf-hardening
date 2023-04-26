@@ -1360,8 +1360,10 @@ static void remove_it(std::list<vins>& il) {
 std::string negate_condition(const std::string& cond) {
 	if      (cond == "ne") return "eq";
 	else if (cond == "eq") return "ne";
-	else if (cond == "cs") return "cc";
-	else if (cond == "cc") return "cs";
+	else if (cond == "cs" ||
+	         cond == "hs") return "cc";
+	else if (cond == "cc" ||
+	         cond == "lo") return "cs";
 	else if (cond == "mi") return "pl";
 	else if (cond == "pl") return "mi";
 	else if (cond == "vs") return "vc";
