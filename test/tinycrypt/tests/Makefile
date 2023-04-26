@@ -16,8 +16,10 @@ TEST_DEPS:=$(TEST_SOURCE:.c=.d)
 TEST_BINARY:=$(TEST_SOURCE:.c=$(DOTEXE))
 
 # Edit the 'all' content to add/remove tests needed from TinyCrypt library:
-all: $(TEST_BINARY) secboot_sha256.elf secboot_hmac.elf secboot_ecc_dsa.elf \
-	naked_secboot_sha256.elf naked_secboot_hmac.elf naked_secboot_ecc_dsa.elf
+all: $(TEST_BINARY) secboot_ecc_dsa.elf secboot_hmac.elf \
+	secboot_sha256_000.elf secboot_sha256_001.elf secboot_sha256_010.elf \
+	secboot_sha256_011.elf secboot_sha256_100.elf secboot_sha256_101.elf \
+	secboot_sha256_110.elf secboot_sha256_111.elf 
 
 clean:
 	-$(RM) $(TEST_BINARY) $(TEST_OBJECTS) $(TEST_DEPS)
@@ -95,29 +97,44 @@ test_sha256$(DOTEXE): test_sha256.o s_sha256.o s_utils.o \
 		../../startup.o ../../stdlib.o ../../second_stack.o
 	$(LD) $(LDFLAGS) $^ -o $@
 
-secboot_sha256$(DOTEXE): s_secboot_sha256.o s_sha256.o s_utils.o \
-		../../startup.o ../../second_stack.o
-	$(LD) $(LDFLAGS) $^ -o $@
-
-secboot_hmac$(DOTEXE): s_secboot_hmac.o s_hmac.o s_sha256.o s_utils.o \
-		../../startup.o ../../second_stack.o
-	$(LD) $(LDFLAGS) $^ -o $@
-
 secboot_ecc_dsa$(DOTEXE): s_secboot_ecc_dsa.o s_ecc_dsa.o s_ecc.o s_utils.o \
 		s_sha256.o ../../startup.o ../../stdlib.o ../../second_stack.o
 	$(LD) $(LDFLAGS) $^ -o $@
 
-naked_secboot_sha256$(DOTEXE): secboot_sha256.o sha256.o utils.o \
+secboot_hmac$(DOTEXE): s_secboot_hmac.o s_hmac.o s_sha256.o s_utils.o \
+		../../startup.o ../../stdlib.o ../../second_stack.o
+	$(LD) $(LDFLAGS) $^ -o $@
+
+secboot_sha256_000$(DOTEXE): secboot_sha256.o utils.o sha256.o \
 		../../startup.o ../../second_stack.o
 	$(LD) $(LDFLAGS) $^ -o $@
 
-naked_secboot_hmac$(DOTEXE): secboot_hmac.o hmac.o sha256.o utils.o \
+secboot_sha256_001$(DOTEXE): secboot_sha256.o utils.o s_sha256.o \
 		../../startup.o ../../second_stack.o
 	$(LD) $(LDFLAGS) $^ -o $@
 
-naked_secboot_ecc_dsa$(DOTEXE): secboot_ecc_dsa.o ecc_dsa.o ecc.o utils.o \
-		sha256.o ../../startup.o ../../stdlib.o ../../second_stack.o
+secboot_sha256_010$(DOTEXE): secboot_sha256.o s_utils.o sha256.o \
+		../../startup.o ../../second_stack.o
 	$(LD) $(LDFLAGS) $^ -o $@
 
+secboot_sha256_011$(DOTEXE): secboot_sha256.o s_utils.o s_sha256.o \
+		../../startup.o ../../second_stack.o
+	$(LD) $(LDFLAGS) $^ -o $@
+
+secboot_sha256_100$(DOTEXE): s_secboot_sha256.o utils.o sha256.o \
+		../../startup.o ../../second_stack.o
+	$(LD) $(LDFLAGS) $^ -o $@
+
+secboot_sha256_101$(DOTEXE): s_secboot_sha256.o utils.o s_sha256.o \
+		../../startup.o ../../second_stack.o
+	$(LD) $(LDFLAGS) $^ -o $@
+
+secboot_sha256_110$(DOTEXE): s_secboot_sha256.o s_utils.o sha256.o \
+		../../startup.o ../../second_stack.o
+	$(LD) $(LDFLAGS) $^ -o $@
+
+secboot_sha256_111$(DOTEXE): s_secboot_sha256.o s_utils.o s_sha256.o \
+		../../startup.o ../../second_stack.o
+	$(LD) $(LDFLAGS) $^ -o $@
 
 -include $(TEST_DEPS)
