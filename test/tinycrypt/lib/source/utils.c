@@ -40,17 +40,15 @@
 unsigned int _copy(uint8_t *to, unsigned int to_len,
 		   const uint8_t *from, unsigned int from_len)
 {
-	if (from_len <= to_len) {
-		(void)memcpy(to, from, from_len);
-		return from_len;
-	} else {
-		return TC_CRYPTO_FAIL;
-	}
+	while (to_len--)
+		to[to_len] = from[to_len];
+	return from_len;
 }
 
 void _set(void *to, uint8_t val, unsigned int len)
 {
-	(void)memset(to, val, len);
+	while (len--)
+		((char*)to)[len] = val;
 }
 
 /*
