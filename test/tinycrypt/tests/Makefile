@@ -96,11 +96,11 @@ test_sha256$(DOTEXE): test_sha256.o s_sha256.o s_utils.o \
 	$(LD) $(LDFLAGS) $^ -o $@
 
 secboot_sha256$(DOTEXE): s_secboot_sha256.o s_sha256.o s_utils.o \
-		../../startup.o ../../stdlib.o ../../second_stack.o
+		../../startup.o ../../second_stack.o
 	$(LD) $(LDFLAGS) $^ -o $@
 
 secboot_hmac$(DOTEXE): s_secboot_hmac.o s_hmac.o s_sha256.o s_utils.o \
-		../../startup.o ../../stdlib.o ../../second_stack.o
+		../../startup.o ../../second_stack.o
 	$(LD) $(LDFLAGS) $^ -o $@
 
 secboot_ecc_dsa$(DOTEXE): s_secboot_ecc_dsa.o s_ecc_dsa.o s_ecc.o s_utils.o \
@@ -108,11 +108,11 @@ secboot_ecc_dsa$(DOTEXE): s_secboot_ecc_dsa.o s_ecc_dsa.o s_ecc.o s_utils.o \
 	$(LD) $(LDFLAGS) $^ -o $@
 
 naked_secboot_sha256$(DOTEXE): secboot_sha256.o sha256.o utils.o \
-		../../startup.o ../../stdlib.o ../../second_stack.o
+		../../startup.o ../../second_stack.o
 	$(LD) $(LDFLAGS) $^ -o $@
 
 naked_secboot_hmac$(DOTEXE): secboot_hmac.o hmac.o sha256.o utils.o \
-		../../startup.o ../../stdlib.o ../../second_stack.o
+		../../startup.o ../../second_stack.o
 	$(LD) $(LDFLAGS) $^ -o $@
 
 naked_secboot_ecc_dsa$(DOTEXE): secboot_ecc_dsa.o ecc_dsa.o ecc.o utils.o \
