@@ -585,6 +585,11 @@ vins vins::ins_add(vreg d, vreg r1, vreg r2) {
 }
 
 vins vins::ins_add(vreg d, vreg r, int imm) {
+	if (imm >= 4096) {
+		std::cerr << "Can't add more than 12 bit: " << imm << '\n';
+		assert(0);
+	}
+
 	vins in;
 	in.addr = std::numeric_limits<uint64_t>::max();
 	in.mnemonic = "add";
@@ -601,6 +606,11 @@ vins vins::ins_add(vreg d, vreg r, int imm) {
 }
 
 vins vins::ins_sub(vreg d, vreg r, int imm) {
+	if (imm >= 4096) {
+		std::cerr << "Can't subtract more than 12 bit: " << imm << '\n';
+		assert(0);
+	}
+
 	vins in;
 	in.addr = std::numeric_limits<uint64_t>::max();
 	in.mnemonic = "sub";
