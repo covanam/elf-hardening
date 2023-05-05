@@ -159,9 +159,9 @@ static void apply_rasm_bb(
 	if (bb.back().is_local_call()) {
 		apply_rasm_bb(*bb.next, sig_reg, sigs);
 	}
-	else if (bb.successors.size() > 2) {
-		assert(bb.back().is_function_return() ||
-			bb.back().is_pseudo() && bb.back().operands == "func_exit");
+	else if (bb.back().is_function_return() ||
+	         bb.back().is_pseudo() && bb.back().operands == "func_exit") {
+		/* do not follow function return */
 	}
 	else {
 		for (auto succ : bb.successors)
