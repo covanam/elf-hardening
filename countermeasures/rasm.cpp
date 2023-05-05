@@ -45,7 +45,8 @@ static void apply_rasm_bb(
 	/* step 2 */
 	int subRanPrevVal, signature;
 	std::tie(signature, subRanPrevVal) = sigs.at(&bb);
-	if (bb.front().is_pseudo() && bb.front().operands == "func_entry") {
+	if (bb.front().is_pseudo() && bb.front().operands == "func_entry" ||
+	    bb.front().label.size() && bb.front().label[0] != '.') {
 		pos = std::next(bb.begin());
 		bb.insert(pos, vins::ins_mov(sig_reg, signature));
 	}
