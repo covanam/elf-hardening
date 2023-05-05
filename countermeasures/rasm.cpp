@@ -134,7 +134,6 @@ static void apply_rasm_bb(
 			bb.insert(pos, std::move(tmp));
 		}
 		{
-			pos = bb.end();
 			int randomNumberSuccs, subRanPrevValSuccs;
 			std::tie(randomNumberSuccs, subRanPrevValSuccs) = sigs.at(bb.successors[1]);
 			int adjustValue = signature - (randomNumberSuccs + subRanPrevValSuccs);
@@ -144,6 +143,8 @@ static void apply_rasm_bb(
 			else
 				tmp = vins::ins_add(sig_reg, sig_reg, -adjustValue);
 			
+			tmp.cond = negate_condition(cond);
+			tmp.mnemonic.append(tmp.cond);
 			bb.insert(pos, std::move(tmp));
 		}
 	}
