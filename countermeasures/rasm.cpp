@@ -96,7 +96,7 @@ static void apply_rasm_bb(
 		pos = std::prev(bb.end());
 		int randomNumberSuccs, subRanPrevValSuccs;
 		std::tie(randomNumberSuccs, subRanPrevValSuccs) = sigs.at(bb.next);
-		int adjustValue = (randomNumberSuccs + subRanPrevValSuccs) - signature;
+		int adjustValue = signature - (randomNumberSuccs + subRanPrevValSuccs);
 		if (adjustValue > 0)
 			bb.insert(pos, vins::ins_sub(sig_reg, sig_reg, adjustValue));
 		else
