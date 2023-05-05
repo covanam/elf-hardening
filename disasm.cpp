@@ -1085,6 +1085,8 @@ bool vins::is_local_call() const {
 }
 
 void vins::transfer_label(vins& in) {
+	assert(in.label.empty());
+
 	in.label = std::move(this->label);
 	label = std::string();
 
