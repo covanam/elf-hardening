@@ -42,7 +42,6 @@ static void apply_rasm_bb(
 
 	basic_block::iterator pos;
 
-	/* step 2 */
 	int subRanPrevVal, signature;
 	std::tie(signature, subRanPrevVal) = sigs.at(&bb);
 	if (bb.front().is_pseudo() && bb.front().operands == "func_entry" ||
@@ -51,19 +50,20 @@ static void apply_rasm_bb(
 		bb.insert(pos, vins::ins_mov(sig_reg, signature));
 	}
 	else {
+		/* step 2 */
 		pos = bb.begin();
 		bb.insert(pos, vins::ins_sub(sig_reg, sig_reg, subRanPrevVal));
 		pos->transfer_label(bb.front());
-	}
 
-	/* step 3 */
-	if (pos->label.empty()) {
-		pos->label = ".sig_check_ok_" + std::to_string(label_count++);
+		/* step 3 */
+		if (pos->label.empty()) {
+			pos->label = ".sig_check_ok_" + std::to_string(label_count++);
+		}
+		std::string label = pos->label;
+		bb.insert(pos, vins::ins_cmp(sig_reg, signature));
+		bb.insert(pos, vins::ins_b("eq", label.c_str()));
+		bb.insert(pos, vins::ins_udf());
 	}
-	std::string label = pos->label;
-	bb.insert(pos, vins::ins_cmp(sig_reg, signature));
-	bb.insert(pos, vins::ins_b("eq", label.c_str()));
-	bb.insert(pos, vins::ins_udf());
 
 	/* step 4 */
 	if (bb.back().is_pseudo() && bb.back().operands == "func_exit" ||
