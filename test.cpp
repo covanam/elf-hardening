@@ -6,6 +6,7 @@
 #include "reg-alloc.h"
 #include <iomanip>
 #include "countermeasures/eddi.h"
+#include "countermeasures/rasm.h"
 
 int fastrand() { 
 	static int g_seed;
@@ -57,7 +58,7 @@ int main(int argc, char *argv[]) {
 
 	control_flow_graph cfg = get_cfg(lift);
 
-	apply_eddi(lift, cfg);
+	apply_rasm(cfg);
 
 	allocate_registers(cfg);
 	

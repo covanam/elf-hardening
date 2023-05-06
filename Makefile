@@ -3,10 +3,13 @@ CXXFLAGS = -g -std=c++17 -IELFIO -lcapstone -lkeystone -I.
 vpath %.cpp countermeasures
 vpath %.h countermeasures
 
-harden: disasm.o cfg.o analysis.o reg-alloc.o test.o eddi.o
+harden: disasm.o cfg.o analysis.o reg-alloc.o test.o eddi.o rasm.o
 	g++ $^ $(CXXFLAGS) -o $@
 
 eddi.o: eddi.cpp eddi.h
+	g++ -c $(CXXFLAGS) $< -o $@
+
+rasm.o: rasm.cpp rasm.h
 	g++ -c $(CXXFLAGS) $< -o $@
 
 disasm.o: disasm.cpp disasm.h
