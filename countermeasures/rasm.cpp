@@ -84,6 +84,9 @@ static void apply_rasm_bb(
 			bb.insert(pos, vins::ins_add(sig_reg, sig_reg, -adjustValue));
 		}
 
+		if (pos != bb.end())
+			pos->transfer_label(*std::prev(pos));
+
 		if (pos->label.empty()) {
 			pos->label = ".sig_check_ok_" + std::to_string(label_count++);
 		}
@@ -101,6 +104,8 @@ static void apply_rasm_bb(
 			bb.insert(pos, vins::ins_sub(sig_reg, sig_reg, adjustValue));
 		else
 			bb.insert(pos, vins::ins_add(sig_reg, sig_reg, -adjustValue));
+		
+		pos->transfer_label(*std::prev(pos));
 	}
 	else if (bb.successors.size() == 1) {
 		if (bb.back().is_jump())
@@ -114,6 +119,9 @@ static void apply_rasm_bb(
 			bb.insert(pos, vins::ins_sub(sig_reg, sig_reg, adjustValue));
 		else
 			bb.insert(pos, vins::ins_add(sig_reg, sig_reg, -adjustValue));
+		
+		if (pos != bb.end())
+			pos->transfer_label(*std::prev(pos));
 	}
 	else if (bb.successors.size() == 2) {
 		std::string cond = bb.back().cond;
@@ -132,6 +140,7 @@ static void apply_rasm_bb(
 			
 			tmp.cond = cond;
 			tmp.mnemonic.append(cond);
+			pos->transfer_label(tmp);
 			bb.insert(pos, std::move(tmp));
 		}
 		{
