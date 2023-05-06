@@ -197,4 +197,8 @@ void apply_rasm(control_flow_graph& cfg) {
 			sig_reg.num++;
 		}
 	}
+
+	for (auto& bb : cfg) {
+		assert(bb.front().is_data() || bb.visited);
+	}
 }
