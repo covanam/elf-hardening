@@ -320,7 +320,7 @@ static basic_block duplicate(lifter& lift, basic_block::iterator begin, basic_bl
 	return std::next(pos);
 }
 
-void apply_eddi(lifter& lift, control_flow_graph& cfg) {
+void apply_swift(lifter& lift, control_flow_graph& cfg) {
 	for (basic_block& bb : cfg) {
 		if (bb.front().is_data())
 			continue;

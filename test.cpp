@@ -7,6 +7,7 @@
 #include <iomanip>
 #include "countermeasures/eddi.h"
 #include "countermeasures/rasm.h"
+#include "countermeasures/swift.h"
 
 int fastrand() { 
 	static int g_seed;
@@ -58,7 +59,7 @@ int main(int argc, char *argv[]) {
 
 	control_flow_graph cfg = get_cfg(lift);
 
-	apply_rasm(cfg);
+	apply_swift(lift, cfg);
 
 	allocate_registers(cfg);
 	
