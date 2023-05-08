@@ -210,38 +210,6 @@ static basic_block duplicate(lifter& lift, basic_block::iterator begin, basic_bl
 	return std::next(pos);
 }
 
-[[nodiscard]] static basic_block::iterator insert_check_cond(
-	basic_block& bb, basic_block::iterator pos
-) {
-	static int label_counter = 0;
-
-	basic_block ins;
-	std::string label = ".check_cond_okay_" + std::to_string(label_counter);
-	++label_counter;
-
-	// mrs r32, aprs
-	ins.push_back(vins::ins_mrs(r_preserve_flags));
-
-	// cmp r31, r32
-	ins.push_back(vins::ins_cmp(r_preserve_flags, r_duplicated_flags));
-
-	// beq .check_cond_okay_#n
-	ins.push_back(vins::ins_b("eq", label.c_str()));
-
-	// udf
-	ins.push_back(vins::ins_udf());
-
-	// .check_cond_okay: msr apsr, r32
-	ins.push_back(vins::ins_msr(r_preserve_flags));
-	ins.back().label = label;
-
-	pos->transfer_label(ins.front());
-
-	bb.splice(pos, ins);
-
-	return std::next(pos);
-}
-
 [[nodiscard]] static basic_block::iterator insert_check_arguments(
 	basic_block& bb,
 	basic_block::iterator pos
@@ -337,9 +305,7 @@ void apply_swift(lifter& lift, control_flow_graph& cfg) {
 			bb.splice(dup_start, duplicate(lift, dup_start, dup_end));
 			
 			if (dup_end != bb.end() && is_sync_point(*dup_end)) {
-				if (dup_end->is_jump() && !dup_end->cond.empty())
-					dup_end = insert_check_cond(bb, dup_end);
-				else if (dup_end->mnemonic.rfind("str", 0) == 0)
+				if (dup_end->mnemonic.rfind("str", 0) == 0)
 					dup_end = insert_check_store(lift, bb, dup_end);
 				else if (dup_end->mnemonic.rfind("stm", 0) == 0)
 					dup_end = insert_check_store(lift, bb, dup_end);
