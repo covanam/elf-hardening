@@ -1436,11 +1436,29 @@ void lifter::add_second_stack_addresses() {
 
 	add_second_stack_address(instructions.end(), sstack_label);
 
+	int distance = 0;
+
 	for (auto in = instructions.rbegin(); in != --instructions.rend(); ++in) {
 		if (in->is_pseudo() && in->operands == "func_entry") {
 			sstack_label = ".second_stack_" + std::to_string(label_count);
 			add_second_stack_address(--in.base(), sstack_label);
 			++label_count;
+			distance = 0;
+		}
+
+		distance += 4;
+
+		if (distance > 4096) {
+			sstack_label = ".second_stack_" + std::to_string(label_count);
+			auto insert_pos = in.base();
+			if (insert_pos->label.empty()) {
+				insert_pos->label = ".jump_over_second_stack_" + std::to_string(label_count);
+			}
+
+			instructions.insert(insert_pos, vins::ins_b("", insert_pos->label.c_str()));
+			add_second_stack_address(insert_pos, sstack_label);
+			++label_count;
+			distance = 0;
 		}
 
 		if (in->target_label == ".second_stack")
@@ -1476,6 +1494,45 @@ void lifter::add_second_stack_addresses() {
 	return in;
 }
 
+void lifter::move_data_closer() {
+	int dup_count = 0;
+
+	for (auto i = instructions.begin(); i != instructions.end(); ++i) {
+		if (i->mnemonic.rfind("str", 0) != 0 && i->mnemonic.rfind("ldr", 0) != 0)
+			continue;
+		
+		if (i->target_label.empty())
+			continue;
+
+		int distance = 0;
+
+		decltype(i) j;
+		for (j = std::next(i); j != instructions.end(); ++j) {
+			distance += 4;
+			if (j->label == i->target_label)
+				break;
+		}
+
+		assert(j != instructions.end());
+
+		if (distance > 1024) {
+			auto next = std::next(i);
+			if (next->label.empty())
+				next->label = ".jump_over_data_" + std::to_string(dup_count);
+
+			vins dup_data = duplicate(*j);
+			i->target_label = dup_data.label + "_dup_data_" + std::to_string(dup_count);
+			dup_data.label = i->target_label;
+
+			instructions.insert(next, vins::ins_b("", next->label.c_str()));
+			instructions.insert(next, std::move(dup_data));
+	
+			dup_count++;
+		}
+	}
+}
+
+
 void lifter::save(std::string file) {
 	if(!text_sec) {
 		if (!reader.save(file))
@@ -1491,6 +1548,8 @@ void lifter::save(std::string file) {
 			instructions.insert(in, std::move(tmp));
 		}
 	}
+
+	move_data_closer();
 
 	std::stringstream assembly;
 
