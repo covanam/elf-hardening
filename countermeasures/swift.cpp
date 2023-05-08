@@ -205,7 +205,8 @@ static basic_block duplicate(lifter& lift, basic_block::iterator begin, basic_bl
 	pos->transfer_label(ins.front());
 
 	bb.splice(pos, ins);
-	bb.splice(pos, duplicate(lift, pos, std::next(pos)));
+	if (pos->gen.size())
+		bb.splice(pos, duplicate(lift, pos, std::next(pos)));
 
 	return std::next(pos);
 }
