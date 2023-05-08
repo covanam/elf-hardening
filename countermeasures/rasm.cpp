@@ -56,13 +56,8 @@ static void apply_rasm_bb(
 		pos->transfer_label(bb.front());
 
 		/* step 3 */
-		if (pos->label.empty()) {
-			pos->label = ".sig_check_ok_" + std::to_string(label_count++);
-		}
-		std::string label = pos->label;
 		bb.insert(pos, vins::ins_cmp(sig_reg, signature));
-		bb.insert(pos, vins::ins_b("eq", label.c_str()));
-		bb.insert(pos, vins::ins_udf());
+		bb.insert(pos, vins::ins_b("ne", ".error_detected"));
 	}
 
 	/* step 4 */
@@ -87,13 +82,8 @@ static void apply_rasm_bb(
 		if (pos != bb.end())
 			pos->transfer_label(*std::prev(pos));
 
-		if (pos->label.empty()) {
-			pos->label = ".sig_check_ok_" + std::to_string(label_count++);
-		}
-		std::string label = pos->label;
 		bb.insert(pos, vins::ins_cmp(sig_reg, returnValue));
-		bb.insert(pos, vins::ins_b("eq", label.c_str()));
-		bb.insert(pos, vins::ins_udf());
+		bb.insert(pos, vins::ins_b("ne", ".error_detected"));
 	}
 	else if (bb.back().is_local_call()) {
 		pos = std::prev(bb.end());
@@ -201,4 +191,7 @@ void apply_rasm(control_flow_graph& cfg) {
 	for (auto& bb : cfg) {
 		assert(bb.front().is_data() || bb.visited);
 	}
+
+	cfg.push_back({vins::ins_udf()});
+	cfg.back().back().label = ".error_detected";
 }
