@@ -52,24 +52,12 @@ static vreg duplicate(vreg r) {
 	assert(0);
 }
 
-static basic_block duplicate(lifter& lift, basic_block::iterator begin, basic_block::iterator end) {
-	if (begin == end)
-		return {};
-
+static basic_block duplicate(lifter& lift, vins* in) {
 	basic_block ins;
 
-	bool use_flags = false;
-	bool update_flags = false;
-
-	for (auto in = begin; in != end; ++in) {
+	{
 		if (in->is_pseudo())
-			continue;
-
-		if (in->use_flags())
-			use_flags = true;
-		
-		if (in->update_flags())
-			update_flags = true;
+			return {};
 
 		std::string cond = in->cond;
 
@@ -162,17 +150,7 @@ static basic_block duplicate(lifter& lift, basic_block::iterator begin, basic_bl
 	if (ins.size() == 0)
 		return {};
 
-	if (update_flags) {
-		// save it to compare with original later
-		ins.push_back(vins::ins_mrs(r_duplicated_flags));
-	}
-	if (use_flags) {
-		// preserve flags as it is used my original instructions
-		ins.push_front(vins::ins_mrs(r_preserve_flags));
-		ins.push_back(vins::ins_msr(r_preserve_flags));
-	}
-
-	begin->transfer_label(ins.front());
+	in->transfer_label(ins.front());
 
 	return ins;
 }
@@ -206,7 +184,7 @@ static basic_block duplicate(lifter& lift, basic_block::iterator begin, basic_bl
 
 	bb.splice(pos, ins);
 	if (pos->gen.size())
-		bb.splice(pos, duplicate(lift, pos, std::next(pos)));
+		bb.splice(pos, duplicate(lift, &*pos));
 
 	return std::next(pos);
 }
@@ -283,7 +261,7 @@ static basic_block duplicate(lifter& lift, basic_block::iterator begin, basic_bl
 		bb.insert(pos, vins::ins_add(duplicate(vreg(13)), duplicate(vreg(13)), 4));
 	}
 	else if (pos->mnemonic == "pop" || pos->mnemonic == "pop.w") {
-		bb.splice(pos, duplicate(lift, pos, std::next(pos)));
+		bb.splice(pos, duplicate(lift, &*pos));
 	}
 
 	return std::next(pos);
@@ -300,10 +278,10 @@ void apply_swift(lifter& lift, control_flow_graph& cfg) {
 		}
 
 		while (dup_start != bb.end() || dup_end != bb.end()) {
-			while (dup_end != bb.end() && !is_sync_point(*dup_end))
-				++dup_end;
-
-			bb.splice(dup_start, duplicate(lift, dup_start, dup_end));
+			while (dup_end != bb.end() && !is_sync_point(*dup_end)) {
+				bb.splice(dup_end, duplicate(lift, &*dup_end));
+				dup_end++;
+			}
 			
 			if (dup_end != bb.end() && is_sync_point(*dup_end)) {
 				if (dup_end->mnemonic.rfind("str", 0) == 0)
