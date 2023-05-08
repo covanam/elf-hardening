@@ -188,10 +188,10 @@ void apply_rasm(control_flow_graph& cfg) {
 		}
 	}
 
-	cfg.back().push_back(vins::ins_udf());
-	cfg.back().back().label = ".error_detected";
-
 	for (auto& bb : cfg) {
 		assert(bb.front().is_data() || bb.visited);
 	}
+
+	cfg.push_back({vins::ins_udf()});
+	cfg.back().back().label = ".error_detected";
 }
