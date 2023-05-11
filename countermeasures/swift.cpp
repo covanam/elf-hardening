@@ -271,32 +271,31 @@ void apply_swift(lifter& lift, control_flow_graph& cfg) {
 	for (basic_block& bb : cfg) {
 		if (bb.front().is_data())
 			continue;
-		basic_block::iterator dup_start = bb.begin(), dup_end = bb.begin();
-		if (bb.front().is_pseudo()) {
-			++dup_start;
-			++dup_end;
-		}
+		basic_block::iterator in = bb.begin();
 
-		while (dup_start != bb.end() || dup_end != bb.end()) {
-			while (dup_end != bb.end() && !is_sync_point(*dup_end)) {
-				bb.splice(dup_end, duplicate(lift, &*dup_end));
-				dup_end++;
+		while (in != bb.end()) {
+			if (in->is_pseudo()) {
+				++in;
+				continue;
+			}
+
+			while (in != bb.end() && !is_sync_point(*in)) {
+				bb.splice(in, duplicate(lift, &*in));
+				in++;
 			}
 			
-			if (dup_end != bb.end() && is_sync_point(*dup_end)) {
-				if (dup_end->mnemonic.rfind("str", 0) == 0)
-					dup_end = insert_check_store(lift, bb, dup_end);
-				else if (dup_end->mnemonic.rfind("stm", 0) == 0)
-					dup_end = insert_check_store(lift, bb, dup_end);
-				else if (dup_end->is_call() && !dup_end->is_local_call())
-					dup_end = insert_check_arguments(bb, dup_end);
-				else if (dup_end->is_function_return()) 
-					dup_end = insert_check_return_value(lift, bb, dup_end);
+			if (in != bb.end() && is_sync_point(*in)) {
+				if (in->mnemonic.rfind("str", 0) == 0)
+					in = insert_check_store(lift, bb, in);
+				else if (in->mnemonic.rfind("stm", 0) == 0)
+					in = insert_check_store(lift, bb, in);
+				else if (in->is_call() && !in->is_local_call())
+					in = insert_check_arguments(bb, in);
+				else if (in->is_function_return()) 
+					in = insert_check_return_value(lift, bb, in);
 				else
-					++dup_end;
+					++in;
 			}
-
-			dup_start = dup_end;
 		}
 	}
 
