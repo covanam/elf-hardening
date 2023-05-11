@@ -1,8 +1,8 @@
 /*
 TODO:
 3.2 Eliminating the Memory Penalty (DONE)
-3.3 Control Flow Checking
-3.4 Enhanced Control Flow Checking
+3.3 Control Flow Checking (DONE)
+3.4 Enhanced Control Flow Checking (DONE)
 3.5.1 Control Flow Checking at Blocks with Stores
 3.5.2 Redundancy in Branch/Control Flow Checking
 4.1 Function calls
@@ -18,6 +18,9 @@ TODO:
 
 static const vreg r_preserve_flags = vreg(31);
 static const vreg r_duplicated_flags = vreg(32);
+static const vreg r_rts = vreg(33);
+static const vreg r_gsr = vreg(34);
+static const vreg r_ret_sig = vreg(35);
 
 static void duplicate_registers(control_flow_graph& cfg) {
 	cfg.reset();
@@ -278,7 +281,7 @@ static basic_block duplicate(lifter& lift, vins* in) {
 	return std::next(pos);
 }
 
-int rand() {
+static int rand_sig() {
 	static std::mt19937 gen_rand;
 	return 0xff & gen_rand();
 };
@@ -303,10 +306,9 @@ static std::string negate_condition(const std::string& cond) {
 	else assert(0);
 }
 
-static void apply_rasm_bb(
+static void apply_cfc(
 	basic_block& bb,
-	vreg sig_reg,
-	const std::map<basic_block*, std::pair<int, int>>& sigs
+	const std::map<basic_block*, int>& sigs
 ) {
 	static int label_count = 0;
 
@@ -316,86 +318,49 @@ static void apply_rasm_bb(
 
 	basic_block::iterator pos;
 
-	int subRanPrevVal, signature;
-	std::tie(signature, subRanPrevVal) = sigs.at(&bb);
-	if (bb.front().is_pseudo() && bb.front().operands == "func_entry" ||
-	    bb.front().label.size() && bb.front().label[0] != '.') {
+	int signature = sigs.at(&bb);
+	if (bb.front().is_pseudo() && bb.front().operands == "func_entry") {
 		pos = std::next(bb.begin());
-		bb.insert(pos, vins::ins_mov(sig_reg, signature));
+		bb.insert(pos, vins::ins_mov(r_gsr, signature));
 	}
 	else {
-		/* step 2 */
 		pos = bb.begin();
-		bb.insert(pos, vins::ins_sub(sig_reg, sig_reg, subRanPrevVal));
+		bb.insert(pos, vins::ins_xor(r_gsr, r_gsr, r_rts));
 		pos->transfer_label(bb.front());
 
-		/* step 3 */
 		if (pos->label.empty()) {
 			pos->label = ".sig_check_ok_" + std::to_string(label_count++);
 		}
 		std::string label = pos->label;
-		bb.insert(pos, vins::ins_cmp(sig_reg, signature));
+		bb.insert(pos, vins::ins_cmp(r_gsr, signature));
 		bb.insert(pos, vins::ins_b("eq", label.c_str()));
 		bb.insert(pos, vins::ins_udf());
 	}
 
-	/* step 4 */
-	if (bb.back().is_pseudo() && bb.back().operands == "func_exit" ||
-	    bb.back().is_function_return()) {
-		if (bb.back().is_pseudo())
-			pos = std::prev(bb.end(), 2);
-		else
-			pos = std::prev(bb.end());
+	if (bb.back().is_function_return()) {
+		pos = std::prev(bb.end());
 
-		assert(pos->is_function_return());
-
-		int returnValue = rand();
-		int adjustValue = signature - returnValue;
-		if (adjustValue > 0) {
-			bb.insert(pos, vins::ins_sub(sig_reg, sig_reg, adjustValue));
-		}
-		else {
-			bb.insert(pos, vins::ins_add(sig_reg, sig_reg, -adjustValue));
-		}
-
-		if (pos != bb.end())
-			pos->transfer_label(*std::prev(pos));
-
-		if (pos->label.empty()) {
-			pos->label = ".sig_check_ok_" + std::to_string(label_count++);
-		}
-		std::string label = pos->label;
-		bb.insert(pos, vins::ins_cmp(sig_reg, returnValue));
-		bb.insert(pos, vins::ins_b("eq", label.c_str()));
-		bb.insert(pos, vins::ins_udf());
+		vins tmp = vins::ins_xor(r_rts, r_ret_sig, signature);
+		pos->transfer_label(tmp);
+		bb.insert(pos, std::move(tmp));
 	}
 	else if (bb.back().is_local_call()) {
 		pos = std::prev(bb.end());
-		int randomNumberSuccs, subRanPrevValSuccs;
-		std::tie(randomNumberSuccs, subRanPrevValSuccs) = sigs.at(bb.next);
-		int adjustValue = signature - (randomNumberSuccs + subRanPrevValSuccs);
-		if (adjustValue > 0)
-			bb.insert(pos, vins::ins_sub(sig_reg, sig_reg, adjustValue));
-		else
-			bb.insert(pos, vins::ins_add(sig_reg, sig_reg, -adjustValue));
 		
-		pos->transfer_label(*std::prev(pos));
+		int ret_sig = sigs.at(bb.next);
+		vins tmp = vins::ins_mov(r_ret_sig, ret_sig);
+		pos->transfer_label(tmp);
+		bb.insert(pos, std::move(tmp));
 	}
 	else if (bb.successors.size() == 1) {
 		if (bb.back().is_jump())
 			pos = std::prev(bb.end());
 		else
 			pos = bb.end();
-		int randomNumberSuccs, subRanPrevValSuccs;
-		std::tie(randomNumberSuccs, subRanPrevValSuccs) = sigs.at(bb.successors[0]);
-		int adjustValue = signature - (randomNumberSuccs + subRanPrevValSuccs);
-		if (adjustValue > 0)
-			bb.insert(pos, vins::ins_sub(sig_reg, sig_reg, adjustValue));
-		else
-			bb.insert(pos, vins::ins_add(sig_reg, sig_reg, -adjustValue));
-		
-		if (pos != bb.end())
-			pos->transfer_label(*std::prev(pos));
+		int sig_next = sigs.at(bb.successors[0]);
+		vins tmp = vins::ins_mov(r_rts, sig_next ^ signature);
+		pos->transfer_label(tmp);
+		bb.insert(pos, std::move(tmp));
 	}
 	else if (bb.successors.size() == 2) {
 		std::string cond = bb.back().cond;
@@ -403,14 +368,8 @@ static void apply_rasm_bb(
 		assert(bb.back().is_jump() == true);
 		{
 			pos = std::prev(bb.end());
-			int randomNumberSuccs, subRanPrevValSuccs;
-			std::tie(randomNumberSuccs, subRanPrevValSuccs) = sigs.at(bb.successors[0]);
-			int adjustValue = signature - (randomNumberSuccs + subRanPrevValSuccs);
-			vins tmp;
-			if (adjustValue > 0)
-				tmp = vins::ins_sub(sig_reg, sig_reg, adjustValue);
-			else
-				tmp = vins::ins_add(sig_reg, sig_reg, -adjustValue);
+			int sig_next = sigs.at(bb.successors[0]);
+			vins tmp = vins::ins_mov(r_rts, sig_next ^ signature);
 			
 			tmp.cond = cond;
 			tmp.mnemonic.append(cond);
@@ -418,14 +377,8 @@ static void apply_rasm_bb(
 			bb.insert(pos, std::move(tmp));
 		}
 		{
-			int randomNumberSuccs, subRanPrevValSuccs;
-			std::tie(randomNumberSuccs, subRanPrevValSuccs) = sigs.at(bb.successors[1]);
-			int adjustValue = signature - (randomNumberSuccs + subRanPrevValSuccs);
-			vins tmp;
-			if (adjustValue > 0)
-				tmp = vins::ins_sub(sig_reg, sig_reg, adjustValue);
-			else
-				tmp = vins::ins_add(sig_reg, sig_reg, -adjustValue);
+			int sig_next = sigs.at(bb.successors[1]);
+			vins tmp = vins::ins_mov(r_rts, sig_next ^ signature);
 			
 			tmp.cond = negate_condition(cond);
 			tmp.mnemonic.append(tmp.cond);
@@ -438,37 +391,17 @@ static void apply_rasm_bb(
 		std::cerr << "Unexpected instruction: " << bb.back() << '\n';
 		assert(0);
 	}
-
-	if (bb.back().is_local_call()) {
-		apply_rasm_bb(*bb.next, sig_reg, sigs);
-	}
-	else if (bb.back().is_function_return() ||
-	         bb.back().is_pseudo() && bb.back().operands == "func_exit") {
-		/* do not follow function return */
-	}
-	else {
-		for (auto succ : bb.successors)
-			apply_rasm_bb(*succ, sig_reg, sigs);
-	}
 }
 
-void apply_rasm(control_flow_graph& cfg) {
-
-	/* step 1 */
-	std::map<basic_block*, std::pair<int, int>> sigs;
+void apply_cfc(control_flow_graph& cfg) {
+	std::map<basic_block*, int> sigs;
 	for (auto& bb : cfg) {
-		std::pair<int, int> sig_and_subVal = {rand(), rand()};
-		sigs.insert({&bb, std::move(sig_and_subVal)});
+		sigs.insert({&bb, rand_sig()});
 	}
 
-	cfg.reset();
-	vreg sig_reg(33);
-
 	for (auto& bb : cfg) {
-		if (false == bb.visited && !bb.front().is_data()) {
-			assert(sig_reg.num < 64);
-			apply_rasm_bb(bb, sig_reg, sigs);
-			sig_reg.num++;
+		if (!bb.front().is_data()) {
+			apply_cfc(bb, sigs);
 		}
 	}
 
