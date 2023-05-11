@@ -74,6 +74,8 @@ public:
 	static vins ins_add(vreg d, vreg r1, vreg r2);
 	static vins ins_add(vreg d, vreg r, int imm);
 	static vins ins_sub(vreg d, vreg r, int imm);
+	static vins ins_xor(vreg d, vreg r1, vreg r2);
+	static vins ins_xor(vreg d, vreg r, int imm);
 	static vins ins_mov(vreg r, int imm);
 	static vins ins_mov(vreg d, vreg s);
 	static vins ins_str(vreg data, vreg addr, int offset);
