@@ -386,6 +386,10 @@ static void apply_cfc(
 		vins tmp = vins::ins_mov(r_ret_sig, ret_sig);
 		pos->transfer_label(tmp);
 		bb.insert(pos, std::move(tmp));
+
+		int sig_next = sigs.at(bb.successors[0]);
+		tmp = vins::ins_mov(r_rts, sig_next ^ signature);
+		bb.insert(pos, std::move(tmp));
 	}
 	else if (bb.successors.size() == 1) {
 		if (bb.back().is_jump())
