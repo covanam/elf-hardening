@@ -3,7 +3,7 @@ TODO:
 3.2 Eliminating the Memory Penalty (DONE)
 3.3 Control Flow Checking (DONE)
 3.4 Enhanced Control Flow Checking (DONE)
-3.5.1 Control Flow Checking at Blocks with Stores
+3.5.1 Control Flow Checking at Blocks with Stores (DONE)
 3.5.2 Redundancy in Branch/Control Flow Checking
 4.1 Function calls
 */
@@ -306,6 +306,17 @@ static std::string negate_condition(const std::string& cond) {
 	else assert(0);
 }
 
+static bool has_store(const basic_block& bb) {
+	for (const auto& in : bb) {
+		if (in.mnemonic.rfind("str", 0) == 0)
+			return true;
+		else if (in.mnemonic.rfind("stm", 0) == 0)
+			return true;
+	}
+
+	return false;
+}
+
 static void apply_cfc(
 	basic_block& bb,
 	const std::map<basic_block*, int>& sigs
@@ -328,16 +339,36 @@ static void apply_cfc(
 		bb.insert(pos, vins::ins_xor(r_gsr, r_gsr, r_rts));
 		pos->transfer_label(bb.front());
 
-		if (pos->label.empty()) {
-			pos->label = ".sig_check_ok_" + std::to_string(label_count++);
+		if (has_store(bb)) {
+			if (pos->label.empty()) {
+				pos->label = ".sig_check_ok_" + std::to_string(label_count++);
+			}
+			std::string label = pos->label;
+			bb.insert(pos, vins::ins_cmp(r_gsr, signature));
+			bb.insert(pos, vins::ins_b("eq", label.c_str()));
+			bb.insert(pos, vins::ins_udf());
 		}
+	}
+
+	if (bb.back().is_pseudo() && bb.back().operands == "func_exit") {
+		pos = std::prev(bb.end(), 2);
+		assert(pos->is_function_return());
+
 		std::string label = pos->label;
 		bb.insert(pos, vins::ins_cmp(r_gsr, signature));
 		bb.insert(pos, vins::ins_b("eq", label.c_str()));
 		bb.insert(pos, vins::ins_udf());
 	}
+	else if (bb.back().is_call() && !bb.back().is_local_call()) {
+		pos = std::prev(bb.end());
+		assert(pos->is_function_return());
 
-	if (bb.back().is_function_return()) {
+		std::string label = pos->label;
+		bb.insert(pos, vins::ins_cmp(r_gsr, signature));
+		bb.insert(pos, vins::ins_b("eq", label.c_str()));
+		bb.insert(pos, vins::ins_udf());
+	}
+	else if (bb.back().is_function_return()) {
 		pos = std::prev(bb.end());
 
 		vins tmp = vins::ins_xor(r_rts, r_ret_sig, signature);
