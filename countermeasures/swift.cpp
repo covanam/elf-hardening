@@ -354,6 +354,8 @@ static void apply_cfc(
 		pos = std::prev(bb.end(), 2);
 		assert(pos->is_function_return());
 
+		if (pos->label.empty())
+			pos->label = ".sig_check_ok_" + std::to_string(label_count++);
 		std::string label = pos->label;
 		bb.insert(pos, vins::ins_cmp(r_gsr, signature));
 		bb.insert(pos, vins::ins_b("eq", label.c_str()));
@@ -363,6 +365,8 @@ static void apply_cfc(
 		pos = std::prev(bb.end());
 		assert(pos->is_function_return());
 
+		if (pos->label.empty())
+			pos->label = ".sig_check_ok_" + std::to_string(label_count++);
 		std::string label = pos->label;
 		bb.insert(pos, vins::ins_cmp(r_gsr, signature));
 		bb.insert(pos, vins::ins_b("eq", label.c_str()));
