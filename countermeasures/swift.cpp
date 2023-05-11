@@ -20,7 +20,14 @@ static const vreg r_preserve_flags = vreg(31);
 static const vreg r_duplicated_flags = vreg(32);
 static const vreg r_rts = vreg(33);
 static const vreg r_gsr = vreg(34);
-static const vreg r_ret_sig = vreg(35);
+
+static vreg new_ret_sig(){
+	static vreg ret_sig(35);
+	auto to_return = ret_sig;
+	ret_sig.num++;
+	assert(to_return.num < 64);
+	return to_return;
+}
 
 static void duplicate_registers(control_flow_graph& cfg) {
 	cfg.reset();
@@ -317,14 +324,15 @@ static bool has_store(const basic_block& bb) {
 	return false;
 }
 
-static void apply_cfc(
+static std::map<const basic_block*, vreg> apply_cfc(
 	basic_block& bb,
 	const std::map<basic_block*, int>& sigs
 ) {
 	static int label_count = 0;
+	static std::map<const basic_block*, vreg> ret_sig_regs;
 
 	if (bb.visited)
-		return;
+		return ret_sig_regs;
 	bb.visited = true;
 
 	basic_block::iterator pos;
@@ -375,20 +383,25 @@ static void apply_cfc(
 	else if (bb.back().is_function_return()) {
 		pos = std::prev(bb.end());
 
-		vins tmp = vins::ins_xor(r_rts, r_ret_sig, signature);
+		assert(bb.successors.size());
+
+		vreg ret_sig_reg = new_ret_sig();
+
+		for (basic_block* succ : bb.successors) {
+			ret_sig_regs.insert({succ, ret_sig_reg});
+		}
+		
+
+		vins tmp = vins::ins_xor(r_rts, ret_sig_reg, signature);
 		pos->transfer_label(tmp);
 		bb.insert(pos, std::move(tmp));
 	}
 	else if (bb.back().is_local_call()) {
 		pos = std::prev(bb.end());
-		
-		int ret_sig = sigs.at(bb.next);
-		vins tmp = vins::ins_mov(r_ret_sig, ret_sig);
-		pos->transfer_label(tmp);
-		bb.insert(pos, std::move(tmp));
 
 		int sig_next = sigs.at(bb.successors[0]);
-		tmp = vins::ins_mov(r_rts, sig_next ^ signature);
+		vins tmp = vins::ins_mov(r_rts, sig_next ^ signature);
+		pos->transfer_label(tmp);
 		bb.insert(pos, std::move(tmp));
 	}
 	else if (bb.successors.size() == 1) {
@@ -442,23 +455,49 @@ static void apply_cfc(
 		std::cerr << "Unexpected instruction: " << bb.back() << '\n';
 		assert(0);
 	}
+
+	return ret_sig_regs;
+}
+
+static void apply_cfc_return_signature(
+	control_flow_graph& cfg,
+	const std::map<basic_block*, int>& sigs,
+	const std::map<const basic_block*, vreg>& ret_sigs) {
+	for (auto& bb : cfg) {
+		if (bb.back().is_local_call()) {
+			auto pos = std::prev(bb.end());
+
+			basic_block *ret_bb = bb.next;
+
+			vreg ret_sig_reg = ret_sigs.at(ret_bb);
+			int ret_sig_value = sigs.at(ret_bb);
+
+			vins tmp = vins::ins_mov(ret_sig_reg, ret_sig_value);
+			pos->transfer_label(tmp);
+			bb.insert(pos, std::move(tmp));
+		}
+	}
 }
 
 void apply_cfc(control_flow_graph& cfg) {
 	std::map<basic_block*, int> sigs;
+	std::map<const basic_block*, vreg> ret_sigs;
+
 	for (auto& bb : cfg) {
 		sigs.insert({&bb, rand_sig()});
 	}
 
 	for (auto& bb : cfg) {
 		if (!bb.front().is_data()) {
-			apply_cfc(bb, sigs);
+			ret_sigs.merge(apply_cfc(bb, sigs));
 		}
 	}
 
 	for (auto& bb : cfg) {
 		assert(bb.front().is_data() || bb.visited);
 	}
+
+	apply_cfc_return_signature(cfg, sigs, ret_sigs);
 
 	cfg.push_back({vins::ins_udf()});
 	cfg.back().back().label = ".error_detected";
