@@ -1,3 +1,13 @@
+/*
+TODO:
+3.2 Eliminating the Memory Penalty
+3.3 Control Flow Checking
+3.4 Enhanced Control Flow Checking
+3.5.1 Control Flow Checking at Blocks with Stores
+3.5.2 Redundancy in Branch/Control Flow Checking
+4.1 Function calls
+*/
+
 #include "reg-alloc.h"
 #include "cfg.h"
 #include <map>
