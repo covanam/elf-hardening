@@ -14,6 +14,7 @@ TODO:
 #include "disasm.h"
 #include <cassert>
 #include "analysis.h"
+#include <random>
 
 static const vreg r_preserve_flags = vreg(31);
 static const vreg r_duplicated_flags = vreg(32);
@@ -329,8 +330,13 @@ static void apply_rasm_bb(
 		pos->transfer_label(bb.front());
 
 		/* step 3 */
+		if (pos->label.empty()) {
+			pos->label = ".sig_check_ok_" + std::to_string(label_count++);
+		}
+		std::string label = pos->label;
 		bb.insert(pos, vins::ins_cmp(sig_reg, signature));
-		bb.insert(pos, vins::ins_b("ne", ".error_detected"));
+		bb.insert(pos, vins::ins_b("eq", label.c_str()));
+		bb.insert(pos, vins::ins_udf());
 	}
 
 	/* step 4 */
@@ -355,8 +361,13 @@ static void apply_rasm_bb(
 		if (pos != bb.end())
 			pos->transfer_label(*std::prev(pos));
 
+		if (pos->label.empty()) {
+			pos->label = ".sig_check_ok_" + std::to_string(label_count++);
+		}
+		std::string label = pos->label;
 		bb.insert(pos, vins::ins_cmp(sig_reg, returnValue));
-		bb.insert(pos, vins::ins_b("ne", ".error_detected"));
+		bb.insert(pos, vins::ins_b("eq", label.c_str()));
+		bb.insert(pos, vins::ins_udf());
 	}
 	else if (bb.back().is_local_call()) {
 		pos = std::prev(bb.end());
