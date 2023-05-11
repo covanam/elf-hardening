@@ -629,7 +629,7 @@ vins vins::ins_sub(vreg d, vreg r, int imm) {
 vins vins::ins_xor(vreg d, vreg r1, vreg r2) {
 	vins in;
 	in.addr = std::numeric_limits<uint64_t>::max();
-	in.mnemonic = "xor";
+	in.mnemonic = "eor";
 	in.operands = "%0, %1, %2";
 	in._is_call = false;
 	in._is_jump = false;
@@ -645,7 +645,7 @@ vins vins::ins_xor(vreg d, vreg r1, vreg r2) {
 vins vins::ins_xor(vreg d, vreg r, int imm) {
 	vins in;
 	in.addr = std::numeric_limits<uint64_t>::max();
-	in.mnemonic = "xor";
+	in.mnemonic = "eor";
 	in.operands = "%0, %1, %i";
 	in._is_call = false;
 	in._is_jump = false;
