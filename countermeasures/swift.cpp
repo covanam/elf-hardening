@@ -1,6 +1,6 @@
 /*
 TODO:
-3.2 Eliminating the Memory Penalty
+3.2 Eliminating the Memory Penalty (DONE)
 3.3 Control Flow Checking
 3.4 Enhanced Control Flow Checking
 3.5.1 Control Flow Checking at Blocks with Stores
