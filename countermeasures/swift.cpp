@@ -181,25 +181,16 @@ static basic_block duplicate(lifter& lift, vins* in) {
 	basic_block& bb,
 	basic_block::iterator pos
 ) {
-	static int label_counter = 0;
-
 	basic_block ins;
-	std::string label;
 
 	for (vreg r : pos->regs) {
 		ins.push_back(vins::ins_cmp(duplicate(r), r));
-		ins.back().label = label;
 
-		label = ".check_okay_" + std::to_string(label_counter);
-		++label_counter;
-		ins.push_back(vins::ins_b("eq", label.c_str()));
-
-		ins.push_back(vins::ins_udf());
+		ins.push_back(vins::ins_b("ne", ".error_detected"));
 	}
 
 	ins.push_front(vins::ins_mrs(r_preserve_flags));
 	ins.push_back(vins::ins_msr(r_preserve_flags));
-	ins.back().label = label;
 
 	pos->transfer_label(ins.front());
 
@@ -214,25 +205,16 @@ static basic_block duplicate(lifter& lift, vins* in) {
 	basic_block& bb,
 	basic_block::iterator pos
 ) {
-	static int label_counter = 0;
-
 	basic_block ins;
-	std::string label;
 
 	for (vreg r : {vreg(0), vreg(1), vreg(2), vreg(3)}) {
 		ins.push_back(vins::ins_cmp(duplicate(r), r));
-		ins.back().label = label;
 
-		label = ".check_args_okay_" + std::to_string(label_counter);
-		++label_counter;
-		ins.push_back(vins::ins_b("eq", label.c_str()));
-
-		ins.push_back(vins::ins_udf());
+		ins.push_back(vins::ins_b("ne", ".error_detected"));
 	}
 
 	ins.push_front(vins::ins_mrs(r_preserve_flags));
 	ins.push_back(vins::ins_msr(r_preserve_flags));
-	ins.back().label = label;
 
 	pos->transfer_label(ins.front());
 
@@ -252,23 +234,15 @@ static basic_block duplicate(lifter& lift, vins* in) {
 	basic_block& bb,
 	basic_block::iterator pos
 ) {
-	static int label_counter = 0;
-
-	std::string label = ".check_retval_okay_" + std::to_string(label_counter);
-	++label_counter;
-
 	basic_block ins;
 
 	ins.push_back(vins::ins_mrs(r_preserve_flags));
 
 	ins.push_back(vins::ins_cmp(duplicate(vreg(0)), vreg(0)));
 
-	ins.push_back(vins::ins_b("eq", label.c_str()));
-
-	ins.push_back(vins::ins_udf());
+	ins.push_back(vins::ins_b("ne", ".error_detected"));
 
 	ins.push_back(vins::ins_msr(r_preserve_flags));
-	ins.back().label = label;
 
 	pos->transfer_label(ins.front());
 
@@ -348,13 +322,15 @@ static std::map<const basic_block*, vreg> apply_cfc(
 		pos->transfer_label(bb.front());
 
 		if (has_store(bb)) {
-			if (pos->label.empty()) {
-				pos->label = ".sig_check_ok_" + std::to_string(label_count++);
-			}
-			std::string label = pos->label;
 			bb.insert(pos, vins::ins_cmp(r_gsr, signature));
-			bb.insert(pos, vins::ins_b("eq", label.c_str()));
-			bb.insert(pos, vins::ins_udf());
+			bb.insert(pos, vins::ins_b("ne", ".error_detected"));
+		}
+	}
+
+	for (auto in = bb.begin(); in != bb.end(); ++in) {
+		if (in->is_call() && !in->is_local_call()) {
+			bb.insert(in, vins::ins_cmp(r_gsr, signature));
+			bb.insert(in, vins::ins_b("ne", ".error_detected"));
 		}
 	}
 
@@ -362,23 +338,8 @@ static std::map<const basic_block*, vreg> apply_cfc(
 		pos = std::prev(bb.end(), 2);
 		assert(pos->is_function_return());
 
-		if (pos->label.empty())
-			pos->label = ".sig_check_ok_" + std::to_string(label_count++);
-		std::string label = pos->label;
 		bb.insert(pos, vins::ins_cmp(r_gsr, signature));
-		bb.insert(pos, vins::ins_b("eq", label.c_str()));
-		bb.insert(pos, vins::ins_udf());
-	}
-	else if (bb.back().is_call() && !bb.back().is_local_call()) {
-		pos = std::prev(bb.end());
-		assert(pos->is_function_return());
-
-		if (pos->label.empty())
-			pos->label = ".sig_check_ok_" + std::to_string(label_count++);
-		std::string label = pos->label;
-		bb.insert(pos, vins::ins_cmp(r_gsr, signature));
-		bb.insert(pos, vins::ins_b("eq", label.c_str()));
-		bb.insert(pos, vins::ins_udf());
+		bb.insert(pos, vins::ins_b("ne", ".error_detected"));
 	}
 	else if (bb.back().is_function_return()) {
 		pos = std::prev(bb.end());
@@ -426,12 +387,11 @@ static std::map<const basic_block*, vreg> apply_cfc(
 				break;
 			}
 		}
-		pos = std::prev(it.base(), 2);
+		pos = std::prev(it.base());
 		assert(pos->update_flags());
-		assert(std::next(pos)->update_flags());
+		assert(std::prev(pos)->update_flags());
 
 		{
-			pos = std::prev(bb.end());
 			int sig_next = sigs.at(bb.successors[0]);
 			vins tmp = vins::ins_mov(r_rts, sig_next ^ signature);
 			
