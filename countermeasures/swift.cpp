@@ -426,12 +426,11 @@ static std::map<const basic_block*, vreg> apply_cfc(
 				break;
 			}
 		}
-		pos = std::prev(it.base(), 2);
+		pos = std::prev(it.base());
 		assert(pos->update_flags());
-		assert(std::next(pos)->update_flags());
+		assert(std::prev(pos)->update_flags());
 
 		{
-			pos = std::prev(bb.end());
 			int sig_next = sigs.at(bb.successors[0]);
 			vins tmp = vins::ins_mov(r_rts, sig_next ^ signature);
 			
