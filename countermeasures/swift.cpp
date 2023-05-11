@@ -451,7 +451,7 @@ void apply_rasm(control_flow_graph& cfg) {
 	}
 
 	cfg.reset();
-	vreg sig_reg(16);
+	vreg sig_reg(33);
 
 	for (auto& bb : cfg) {
 		if (false == bb.visited && !bb.front().is_data()) {
