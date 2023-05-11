@@ -4,7 +4,7 @@ TODO:
 3.3 Control Flow Checking (DONE)
 3.4 Enhanced Control Flow Checking (DONE)
 3.5.1 Control Flow Checking at Blocks with Stores (DONE)
-3.5.2 Redundancy in Branch/Control Flow Checking
+3.5.2 Redundancy in Branch/Control Flow Checking (DONE)
 4.1 Function calls
 */
 
@@ -406,6 +406,17 @@ static void apply_cfc(
 		std::string cond = bb.back().cond;
 		assert(cond.size());
 		assert(bb.back().is_jump() == true);
+
+		auto it = bb.rbegin();
+		for (; it != bb.rend(); ++it) {
+			if (it->update_flags() && std::next(it)->update_flags()) {
+				break;
+			}
+		}
+		pos = std::prev(it.base(), 2);
+		assert(pos->update_flags());
+		assert(std::next(pos)->update_flags());
+
 		{
 			pos = std::prev(bb.end());
 			int sig_next = sigs.at(bb.successors[0]);
