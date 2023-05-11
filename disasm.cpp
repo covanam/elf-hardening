@@ -642,6 +642,23 @@ vins vins::ins_xor(vreg d, vreg r1, vreg r2) {
 	return in;
 }
 
+vins vins::ins_xor(vreg d, vreg r, int imm) {
+	vins in;
+	in.addr = std::numeric_limits<uint64_t>::max();
+	in.mnemonic = "xor";
+	in.operands = "%0, %1, %i";
+	in._is_call = false;
+	in._is_jump = false;
+	in._can_fall_through = true;
+	in._size = 0;
+	in.regs = {d, r};
+	in.use = {1};
+	in.gen = {0};
+	in._imm = imm;
+
+	return in;
+}
+
 vins vins::ins_mov(vreg r, int imm) {
 	vins in;
 	in.addr = std::numeric_limits<uint64_t>::max();
