@@ -5,7 +5,7 @@ TODO:
 3.4 Enhanced Control Flow Checking (DONE)
 3.5.1 Control Flow Checking at Blocks with Stores (DONE)
 3.5.2 Redundancy in Branch/Control Flow Checking (DONE)
-4.1 Function calls
+4.1 Function calls (DONE)
 */
 
 #include "reg-alloc.h"
