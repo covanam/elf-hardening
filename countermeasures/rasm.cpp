@@ -6,7 +6,12 @@
 
 int rand() {
 	static std::mt19937 gen_rand;
-	return 0xff & gen_rand();
+	int val;
+	do {
+		val = 0xff & gen_rand();
+	} while (val == 0);
+
+	return val;
 };
 
 static std::string negate_condition(const std::string& cond) {
