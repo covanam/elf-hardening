@@ -1460,7 +1460,10 @@ void lifter::add_second_stack_addresses() {
 	for (auto in = instructions.rbegin(); in != --instructions.rend(); ++in) {
 		if (in->is_pseudo() && in->operands == "func_entry") {
 			sstack_label = ".second_stack_" + std::to_string(label_count);
-			add_second_stack_address(--in.base(), sstack_label);
+			if (std::prev(in.base(), 2)->mnemonic == "udf")
+				add_second_stack_address(std::prev(in.base(), 2), sstack_label);
+			else
+				add_second_stack_address(std::prev(in.base()), sstack_label);
 			++label_count;
 			distance = 0;
 		}
