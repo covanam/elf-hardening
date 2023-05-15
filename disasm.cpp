@@ -486,7 +486,8 @@ vins vins::ins_cmp(vreg r, int imm) {
 	vins in;
 	in.addr = std::numeric_limits<uint64_t>::max();
 	in.mnemonic = "cmp";
-	in.operands = "%0, #" + std::to_string(imm);
+	in.operands = "%0, #%i";
+	in._imm = imm;
 	in.regs.push_back(r);
 	in.use.push_back(0);
 	in._is_call = false;
@@ -663,7 +664,8 @@ vins vins::ins_mov(vreg r, int imm) {
 	vins in;
 	in.addr = std::numeric_limits<uint64_t>::max();
 	in.mnemonic = "mov";
-	in.operands = "%0, #" + std::to_string(imm);
+	in.operands = "%0, #%i";
+	in._imm = imm;
 	in._is_call = false;
 	in._is_jump = false;
 	in._can_fall_through = true;
