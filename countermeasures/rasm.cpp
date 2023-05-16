@@ -6,7 +6,12 @@
 
 int rand() {
 	static std::mt19937 gen_rand;
-	return 0xff & gen_rand();
+	int val;
+	do {
+		val = 0xff & gen_rand();
+	} while (val == 0);
+
+	return val;
 };
 
 static std::string negate_condition(const std::string& cond) {
@@ -42,6 +47,7 @@ static void apply_rasm_bb(
 
 	basic_block::iterator pos;
 
+	/* step 2 */
 	int subRanPrevVal, signature;
 	std::tie(signature, subRanPrevVal) = sigs.at(&bb);
 	if (bb.front().is_pseudo() && bb.front().operands == "func_entry" ||
@@ -50,15 +56,14 @@ static void apply_rasm_bb(
 		bb.insert(pos, vins::ins_mov(sig_reg, signature));
 	}
 	else {
-		/* step 2 */
 		pos = bb.begin();
 		bb.insert(pos, vins::ins_sub(sig_reg, sig_reg, subRanPrevVal));
 		pos->transfer_label(bb.front());
-
-		/* step 3 */
-		bb.insert(pos, vins::ins_cmp(sig_reg, signature));
-		bb.insert(pos, vins::ins_b("ne", ".error_detected"));
 	}
+
+	/* step 3 */
+	bb.insert(pos, vins::ins_cmp(sig_reg, signature));
+	bb.insert(pos, vins::ins_b("ne", ".error_detected"));
 
 	/* step 4 */
 	if (bb.back().is_pseudo() && bb.back().operands == "func_exit" ||

@@ -8,6 +8,7 @@
 #include "countermeasures/eddi.h"
 #include "countermeasures/rasm.h"
 #include "countermeasures/swift.h"
+#include "countermeasures/post-process.h"
 
 int fastrand() { 
 	static int g_seed;
@@ -59,9 +60,11 @@ int main(int argc, char *argv[]) {
 
 	control_flow_graph cfg = get_cfg(lift);
 
-	apply_swift(lift, cfg);
+	apply_rasm(cfg);
 
 	allocate_registers(cfg);
+
+	mitigate_second_stack_vunerabilities(cfg);
 	
 	lift.instructions = cfg_dump(cfg);
 	

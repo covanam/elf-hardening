@@ -3,8 +3,11 @@ CXXFLAGS = -g -std=c++17 -IELFIO -lcapstone -lkeystone -I.
 vpath %.cpp countermeasures
 vpath %.h countermeasures
 
-harden: disasm.o cfg.o analysis.o reg-alloc.o test.o eddi.o rasm.o swift.o
+harden: disasm.o cfg.o analysis.o reg-alloc.o test.o eddi.o rasm.o swift.o post-process.o
 	g++ $^ $(CXXFLAGS) -o $@
+
+post-process.o: post-process.cpp post-process.h
+	g++ -c $(CXXFLAGS) $< -o $@
 
 swift.o: swift.cpp swift.h
 	g++ -c $(CXXFLAGS) $< -o $@
