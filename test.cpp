@@ -60,7 +60,7 @@ int main(int argc, char *argv[]) {
 
 	control_flow_graph cfg = get_cfg(lift);
 
-	apply_rasm(cfg);
+	apply_swift(lift, cfg);
 
 	allocate_registers(cfg);
 
