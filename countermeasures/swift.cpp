@@ -320,11 +320,11 @@ static std::map<const basic_block*, vreg> apply_cfc(
 		pos = bb.begin();
 		bb.insert(pos, vins::ins_xor(r_gsr, r_gsr, r_rts));
 		pos->transfer_label(bb.front());
+	}
 
-		if (has_store(bb)) {
-			bb.insert(pos, vins::ins_cmp(r_gsr, signature));
-			bb.insert(pos, vins::ins_b("ne", ".error_detected"));
-		}
+	if (has_store(bb)) {
+		bb.insert(pos, vins::ins_cmp(r_gsr, signature));
+		bb.insert(pos, vins::ins_b("ne", ".error_detected"));
 	}
 
 	for (auto in = bb.begin(); in != bb.end(); ++in) {
