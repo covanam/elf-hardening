@@ -31,6 +31,12 @@ static void init_bss_section(void)
 	}
 }
 
+void __attribute__ ((noinline)) bootloader_completed() {
+	while (1) {
+		__asm("wfi");
+	}
+}
+
 void Reset_Handler(void)
 {
 	extern uint32_t _test_mem;
@@ -41,9 +47,7 @@ void Reset_Handler(void)
 
 	main();
 
-	while (1) {
-		__asm("wfi");
-	}
+	bootloader_completed();
 }
 
 #define Default_Handler() while (1) { __asm("wfi"); }			

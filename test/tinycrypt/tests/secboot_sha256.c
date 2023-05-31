@@ -10,13 +10,8 @@ static const uint8_t reference_hash[32] = {
 	0xf6, 0xec, 0xed, 0xd4, 0x19, 0xdb, 0x06, 0xc1
 };
 
-__attribute__((noinline)) void execute_firmware() {
-	TC_END_REPORT(TC_PASS);
-}
-
-__attribute__((noinline)) void abort_boot() {
-	TC_END_REPORT(TC_FAIL);
-}
+#define execute_firmware() TC_END_REPORT(TC_PASS)
+#define abort_boot()       TC_END_REPORT(TC_FAIL)
 
 int my_main() {
 	struct tc_sha256_state_struct state;
